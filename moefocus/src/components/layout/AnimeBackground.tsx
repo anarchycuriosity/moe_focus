@@ -13,7 +13,7 @@ export function AnimeBackground(): JSX.Element
       if (path)
       {
         // Convert to file:// URL for CSS background
-        const file_url = `file:///${path.replace(/\\/g, '/')}`
+        const file_url = `local://${path.replace(/\\/g, '/')}`
         set_wallpaper_path(file_url)
       }
     })
@@ -29,7 +29,7 @@ export function AnimeBackground(): JSX.Element
     {
       if (data.key === 'ui.active_wallpaper' && data.value)
       {
-        const file_url = `file:///${String(data.value).replace(/\\/g, '/')}`
+        const file_url = `local://${String(data.value).replace(/\\/g, '/')}`
         set_wallpaper_path(file_url)
       }
     })
@@ -41,7 +41,7 @@ export function AnimeBackground(): JSX.Element
   {
     const dest_path = await window.electronAPI.file.set_wallpaper(file_path)
     await window.electronAPI.settings.set('ui.active_wallpaper', dest_path)
-    const file_url = `file:///${dest_path.replace(/\\/g, '/')}`
+    const file_url = `local://${dest_path.replace(/\\/g, '/')}`
     set_wallpaper_path(file_url)
   }
 

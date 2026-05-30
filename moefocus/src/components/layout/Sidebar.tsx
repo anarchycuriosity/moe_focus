@@ -10,7 +10,6 @@ interface NavItem
 
 const nav_items: NavItem[] = [
   { path: '/', icon: '📋', label: '今日' },
-  { path: '/focus', icon: '🎯', label: '专注' },
   { path: '/diary', icon: '📔', label: '日记' },
   { path: '/statistics', icon: '📊', label: '统计' },
   { path: '/settings', icon: '⚙️', label: '设置' }

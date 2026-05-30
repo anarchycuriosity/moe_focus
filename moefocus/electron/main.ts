@@ -2,16 +2,15 @@
 // 应用入口 — BrowserWindow 创建、生命周期管理
 // Phase 5: 添加 scheduler_service 自动任务调度
 
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, shell, protocol } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
-import { registerAllHandlers } from './ipc'           // Phase 1
-import { DatabaseService } from './services/DatabaseService' // Phase 1
-import { scheduler_service } from './services/SchedulerService' // Phase 5
+import { registerAllHandlers } from './ipc'
+import { DatabaseService } from './services/DatabaseService'
+import { scheduler_service } from './services/SchedulerService'
 
 let main_window: BrowserWindow | null = null
 
-// Phase 1: 无边框窗口 + 自定义标题栏
 function create_window(): void
 {
   main_window = new BrowserWindow({
@@ -54,10 +53,15 @@ function create_window(): void
 
 app.whenReady().then(async () =>
 {
-  // Phase 1: 异步初始化数据库 (sql.js) 后注册所有 IPC handler
+  // Register custom protocol for local file access (bypasses file:// CSP block)
+  protocol.registerFileProtocol('local', (request, callback) =>
+  {
+    const file_path = decodeURIComponent(request.url.replace('local://', ''))
+    callback({ path: file_path })
+  })
+
   await DatabaseService.instance.initialize()
   registerAllHandlers()
-  // Phase 5: 启动定时任务 — 日记自动生成 + QQ邮箱提醒
   scheduler_service.start()
   create_window()
 

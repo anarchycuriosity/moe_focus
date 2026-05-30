@@ -165,9 +165,14 @@ export function SettingsPage(): JSX.Element
             </div>
             <div className={styles.field}>
               <label>自定义壁纸</label>
-              <MoeButton variant="secondary" size="sm" onClick={handle_pick_wallpaper}>
-                选择图片...
-              </MoeButton>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <MoeButton variant="secondary" size="sm" onClick={handle_pick_wallpaper}>
+                  选择图片...
+                </MoeButton>
+                <MoeButton variant="ghost" size="sm" onClick={() => window.electronAPI.file.open_wallpapers_folder()}>
+                  📁 打开文件夹
+                </MoeButton>
+              </div>
             </div>
 
             <h3 style={{ marginTop: '24px' }}>Typora 路径</h3>

@@ -475,4 +475,14 @@ function registerFileHandlers(): void
 
     return file_path
   })
+
+  ipcMain.handle('file:openWallpapersFolder', async () =>
+  {
+    const { app } = await import('electron')
+    const { join } = await import('path')
+    const { shell } = await import('electron')
+    const dir = join(app.getAppPath(), 'wallpapers')
+    shell.openPath(dir)
+    return { success: true }
+  })
 }

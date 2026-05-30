@@ -101,6 +101,7 @@ const electron_api = {
     open_in_typora: (file_path: string) => ipcRenderer.invoke('file:openInTypora', file_path),
     pick_image: () => ipcRenderer.invoke('file:pickImage'),
     set_wallpaper: (file_path: string) => ipcRenderer.invoke('file:setWallpaper', file_path),
+    open_wallpapers_folder: () => ipcRenderer.invoke('file:openWallpapersFolder'),
     on_file_drop: (cb: (file_path: string) => void) =>
     {
       const listener = (_event: Electron.IpcRendererEvent, file_path: string) => cb(file_path)

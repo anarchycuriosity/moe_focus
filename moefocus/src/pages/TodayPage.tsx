@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { TaskLibrary } from '../components/tasks/TaskLibrary'
 import { TodayPanel } from '../components/tasks/TodayPanel'
 import { FocusTimer } from '../components/timer/FocusTimer'
+import { SessionConfig } from '../components/timer/SessionConfig'
 import { useTodoStore } from '../store/useTodoStore'
 import styles from './TodayPage.module.css'
 
@@ -97,6 +98,7 @@ export function TodayPage(): JSX.Element
           </div>
           <div className={styles.timer_section}>
             <FocusTimer />
+            <SessionConfig />
           </div>
         </div>
       </div>

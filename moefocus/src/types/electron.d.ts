@@ -171,6 +171,7 @@ interface ElectronAPI
     open_in_typora: (file_path: string) => Promise<{ success: boolean }>
     pick_image: () => Promise<string | null>
     set_wallpaper: (file_path: string) => Promise<string>
+    open_wallpapers_folder: () => Promise<{ success: boolean }>
     on_file_drop: (cb: (file_path: string) => void) => () => void
   }
   window: {
