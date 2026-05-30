@@ -16,6 +16,7 @@ interface TodoStore
   remove_todo: (id: number) => Promise<void>
   reorder_todos: (ids: number[]) => Promise<void>
   toggle_done: (id: number) => Promise<void>
+  clear_all: () => Promise<void>
 }
 
 export const useTodoStore = create<TodoStore>((set, get) => ({
@@ -81,5 +82,18 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
     const new_status = item.status === 'done' ? 'pending' : 'done'
     const completed_at = new_status === 'done' ? dayjs().format('YYYY-MM-DD HH:mm:ss') : null
     await get().update_todo(id, { status: new_status, completed_at })
+  },
+
+  clear_all: async () =>
+  {
+    const current = get().items
+    for (const item of current)
+    {
+      if (item && item.id != null)
+      {
+        await window.electronAPI.todos.remove(item.id)
+      }
+    }
+    set({ items: [] })
   }
 }))

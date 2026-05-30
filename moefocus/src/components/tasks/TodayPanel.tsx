@@ -8,7 +8,7 @@ import styles from './TodayPanel.module.css'
 
 export function TodayPanel(): JSX.Element
 {
-  const { items, load_todos, toggle_done, remove_todo } = useTodoStore()
+  const { items, load_todos, toggle_done, remove_todo, clear_all } = useTodoStore()
 
   const { setNodeRef, isOver } = useDroppable({
     id: 'today-panel',
@@ -30,7 +30,14 @@ export function TodayPanel(): JSX.Element
     >
       <div className={styles.header}>
         <span className={styles.header_title}>今日计划</span>
-        <span className={styles.count}>{valid_items.length} 项</span>
+        <div className={styles.header_right}>
+          <span className={styles.count}>{valid_items.length} 项</span>
+          {valid_items.length > 0 && (
+            <button className={styles.clear_btn} onClick={clear_all} title="清空今日计划">
+              清空
+            </button>
+          )}
+        </div>
       </div>
 
       <div className={styles.list}>

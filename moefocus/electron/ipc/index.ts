@@ -139,13 +139,23 @@ function registerTodoHandlers(): void
       'INSERT INTO todo_items (task_id, custom_title, date, sort_order) VALUES (?, ?, ?, ?)',
       [item.task_id || null, item.custom_title || null, item.date, next_order]
     )
-    return db().get(
+
+    // Use MAX(id) instead of last_insert_rowid() for sql.js compatibility
+    const id_row = db().get('SELECT MAX(id) as new_id FROM todo_items WHERE date = ?', [item.date])
+    const new_id = (id_row as { new_id: number } | undefined)?.new_id ?? 0
+    console.log('[IPC] todo:add, new_id:', new_id)
+
+    if (new_id === 0) return null
+
+    const result = db().get(
       `SELECT ti.*, t.title as task_title, t.color as task_color, t.icon as task_icon
        FROM todo_items ti
        LEFT JOIN tasks t ON ti.task_id = t.id
        WHERE ti.id = ?`,
-      [last_insert_id(db)]
+      [new_id]
     )
+    console.log('[IPC] todo:add result:', result)
+    return result
   })
 
   ipcMain.handle('todo:update', (_event, id, data) =>
