@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { MoeCard } from '../components/common/MoeCard'
@@ -19,9 +19,14 @@ export function DiaryPage(): JSX.Element
   const target_date = date || dayjs().format('YYYY-MM-DD')
 
   const [entries, set_entries] = useState<DiaryEntry[]>([])
-  const [wallpapers, set_wallpapers] = useState<string[]>([])
+  const [pictures, set_pictures] = useState<string[]>([])
   const [img_idx, set_img_idx] = useState(0)
   const [has_today, set_has_today] = useState(false)
+  const [rotate_enabled, set_rotate_enabled] = useState(true)
+  const [rotate_interval, set_rotate_interval] = useState(8)
+  const [fading, set_fading] = useState(false)
+  const [display_idx, set_display_idx] = useState(0)
+  const timer_ref = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() =>
   {
@@ -29,7 +34,8 @@ export function DiaryPage(): JSX.Element
     {
       set_entries(rows as unknown as DiaryEntry[])
     })
-    load_wallpapers()
+    load_pictures()
+    load_settings()
   }, [])
 
   useEffect(() =>
@@ -38,40 +44,59 @@ export function DiaryPage(): JSX.Element
     set_has_today(!!entry)
   }, [target_date, entries])
 
-  const load_wallpapers = async () =>
+  const load_pictures = async () =>
   {
-    // Try wallpapers table first, then settings key
-    let path = await window.electronAPI.file.get_active_wallpaper()
-    if (!path)
+    const paths = await window.electronAPI.file.get_diary_pictures()
+    if (paths && paths.length > 0)
     {
-      path = await window.electronAPI.settings.get('ui.active_wallpaper')
-    }
-    if (path)
-    {
-      set_wallpapers([path])
+      set_pictures(paths)
     }
   }
+
+  const load_settings = async () =>
+  {
+    const enabled = await window.electronAPI.settings.get('diary.rotateEnabled')
+    const interval = await window.electronAPI.settings.get('diary.rotateInterval')
+    if (enabled !== null) set_rotate_enabled(enabled === 'true')
+    if (interval !== null) set_rotate_interval(parseInt(interval, 10) || 8)
+  }
+
+  // Auto-rotation
+  useEffect(() =>
+  {
+    if (timer_ref.current)
+    {
+      clearInterval(timer_ref.current)
+      timer_ref.current = null
+    }
+
+    if (pictures.length <= 1 || !rotate_enabled) return
+
+    timer_ref.current = setInterval(() =>
+    {
+      set_fading(true)
+      setTimeout(() =>
+      {
+        set_display_idx((prev) => (prev + 1) % pictures.length)
+        set_fading(false)
+      }, 500)
+    }, rotate_interval * 1000)
+
+    return () =>
+    {
+      if (timer_ref.current) clearInterval(timer_ref.current)
+    }
+  }, [pictures, rotate_enabled, rotate_interval])
 
   // Group entries by month
   const grouped: Record<string, DiaryEntry[]> = {}
   for (const e of entries)
   {
-    const month = e.date.slice(0, 7) // 'YYYY-MM'
+    const month = e.date.slice(0, 7)
     if (!grouped[month]) grouped[month] = []
     grouped[month].push(e)
   }
   const months = Object.keys(grouped).sort().reverse()
-
-  // Cycle wallpaper image every 5 seconds
-  useEffect(() =>
-  {
-    if (wallpapers.length <= 1) return
-    const timer = setInterval(() =>
-    {
-      set_img_idx((prev) => (prev + 1) % wallpapers.length)
-    }, 5000)
-    return () => clearInterval(timer)
-  }, [wallpapers])
 
   const handle_open = async (d: string) =>
   {
@@ -93,13 +118,12 @@ export function DiaryPage(): JSX.Element
     const result = await window.electronAPI.diary.generate(target_date)
     if (result.success)
     {
-      // Refresh list
       const rows = await window.electronAPI.diary.list_all()
       set_entries(rows as unknown as DiaryEntry[])
     }
   }
 
-  const current_wallpaper = wallpapers[img_idx % wallpapers.length] || ''
+  const current_pic = pictures[display_idx % pictures.length] || ''
 
   return (
     <div className={styles.page}>
@@ -154,33 +178,50 @@ export function DiaryPage(): JSX.Element
         </div>
       </div>
 
-      {/* Main area: image frame + selected date info */}
+      {/* Main area: rotating photo frame */}
       <div className={styles.main}>
         <MoeCard className={styles.frame_card}>
-          {current_wallpaper ? (
-            <div
-              className={styles.image_frame}
-              style={{ backgroundImage: `url(local:///${current_wallpaper.replace(/\\/g, '/')})` }}
-              onClick={() =>
-              {
-                if (target_date) handle_open(target_date)
-              }}
-              title="点击用 Typora 打开当天日记"
-            >
-              <div className={styles.frame_overlay}>
-                <span className={styles.frame_date}>{target_date}</span>
-                {has_today ? (
-                  <span className={styles.frame_hint}>点击打开日记</span>
-                ) : (
-                  <span className={styles.frame_hint}>日记尚未生成</span>
-                )}
+          {current_pic ? (
+            <div className={styles.frame_wrapper}>
+              <div
+                className={`${styles.image_frame} ${fading ? styles.fading : ''}`}
+                style={{
+                  backgroundImage: `url(local:///${current_pic.replace(/\\/g, '/')})`
+                }}
+                onClick={() =>
+                {
+                  if (target_date) handle_open(target_date)
+                }}
+                title="点击用 Typora 打开当天日记"
+              >
+                <div className={styles.frame_overlay}>
+                  <span className={styles.frame_date}>{target_date}</span>
+                  <div className={styles.frame_info}>
+                    {pictures.length > 1 && (
+                      <span className={styles.frame_counter}>
+                        {display_idx + 1} / {pictures.length}
+                        {rotate_enabled && ` · ${rotate_interval}s`}
+                      </span>
+                    )}
+                    {has_today ? (
+                      <span className={styles.frame_hint}>点击打开日记</span>
+                    ) : (
+                      <span className={styles.frame_hint}>日记尚未生成</span>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           ) : (
             <div className={styles.no_image}>
               <span className={styles.no_image_icon}>🖼️</span>
-              <p>在「设置 → 通用 → 自定义壁纸」中选择图片</p>
-              <p className={styles.no_image_hint}>支持 jpg / png / gif / webp，选中后壁纸将在此处和全局背景中展示</p>
+              <p>将图片放入 diary-pictures 文件夹</p>
+              <p className={styles.no_image_hint}>
+                在项目目录 moefocus/diary-pictures/ 下放入任意图片文件（jpg/png/gif/webp），将在此处自动轮播展示
+              </p>
+              <p className={styles.no_image_hint}>
+                轮播间隔和开关可在「设置 → 通用 → 日记相框」中调整
+              </p>
             </div>
           )}
         </MoeCard>

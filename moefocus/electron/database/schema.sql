@@ -77,6 +77,8 @@ INSERT OR IGNORE INTO settings (key, value) VALUES ('focus.defaultRestDuration',
 INSERT OR IGNORE INTO settings (key, value) VALUES ('diary.autoGenerateTime', '23:00');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('diary.autoCommit', 'true');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('diary.autoPush', 'true');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('diary.rotateEnabled', 'true');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('diary.rotateInterval', '8');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('email.reminderTime', '22:30');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('email.reminderEnabled', 'true');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('github.remoteUrl', 'https://github.com/anarchycuriosity/moe_focus_data.git');

@@ -191,6 +191,31 @@ export function SettingsPage(): JSX.Element
               onChange={(e) => update('typora.path', e.target.value)}
             />
 
+            <h3 style={{ marginTop: '24px' }}>日记相框</h3>
+            <div className={styles.field}>
+              <label>自动轮换</label>
+              <select
+                value={settings['diary.rotateEnabled'] || 'true'}
+                onChange={(e) => update('diary.rotateEnabled', e.target.value)}
+                className={styles.select}
+              >
+                <option value="true">启用</option>
+                <option value="false">禁用</option>
+              </select>
+            </div>
+            <div className={styles.field}>
+              <label>轮换间隔 (秒)</label>
+              <input
+                type="number"
+                min={3}
+                max={120}
+                value={settings['diary.rotateInterval'] || '8'}
+                onChange={(e) => update('diary.rotateInterval', e.target.value)}
+                className={styles.time_input}
+                style={{ width: '100px' }}
+              />
+            </div>
+
             <h3 style={{ marginTop: '24px' }}>日记设置</h3>
             <div className={styles.field}>
               <label>自动生成时间</label>
