@@ -92,10 +92,16 @@
   padding: 6px 12px;
   border: 1.5px solid var(--moe-border);
   border-radius: var(--moe-radius-xs);
-  background: white;
+  background: var(--moe-glass-hover);
   color: var(--moe-text);
   outline: none;
   cursor: pointer;
+  color-scheme: dark;
+}
+/* Light mode override: native dropdown legibility */
+[data-theme] .select {
+  color-scheme: light;
+  background: white;
 }
 
 .select:focus {
@@ -108,9 +114,14 @@
   padding: 6px 12px;
   border: 1.5px solid var(--moe-border);
   border-radius: var(--moe-radius-xs);
-  background: white;
+  background: var(--moe-glass-hover);
   color: var(--moe-text);
   outline: none;
+  color-scheme: dark;
+}
+[data-theme] .time_input {
+  color-scheme: light;
+  background: white;
 }
 
 .time_input:focus {
@@ -119,7 +130,8 @@
 
 .note {
   font-size: 12px;
-  color: var(--moe-text-light);
+  color: var(--moe-text);
+  opacity: 0.75;
   margin-bottom: 16px;
   line-height: 1.6;
 }
@@ -137,12 +149,13 @@
 .git_status {
   margin-top: 12px;
   padding: 12px;
-  background: rgba(255, 245, 238, 0.5);
+  background: var(--moe-glass-bg);
   border: 1px solid var(--moe-border);
   border-radius: var(--moe-radius-xs);
-  font-size: 11px;
-  color: var(--moe-text-light);
+  font-size: 12px;
+  color: var(--moe-text);
   white-space: pre-wrap;
   max-height: 200px;
   overflow: auto;
+  line-height: 1.7;
 }
