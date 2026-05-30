@@ -58,3 +58,35 @@ Electron 从 `protocol.registerFileProtocol` 迁移到 `protocol.handle`：
 - **IPC 模式**：preload.ts 暴露类型安全的 API → ipc/index.ts 注册 handler → Service 层处理业务逻辑
 - **Recharts**：适合中等复杂度的图表需求，堆叠柱状图需要前端数据转换
 - **CSS Modules**：每个组件的样式隔离良好，全局主题变量在 `global.css` 中定义
+
+---
+
+## 第四轮修复 (2026-05-31)
+
+### 7. npm 包安装成功 ≠ 应用可运行
+
+Electron 的 npm 包和 Electron 二进制文件是分离的：
+- npm 包通过 registry 下载（npm mirror 已覆盖）
+- 二进制文件通过 `@electron/get` 从 GitHub Releases 下载（需要单独的 `ELECTRON_MIRROR` 环境变量）
+- postinstall 脚本失败可能不阻断 `npm install` 返回 0
+
+**教训**：
+- `.npmrc` 的 `registry` 镜像 ≠ Electron 二进制镜像，国内环境需要两层镜像
+- `npm_config_*` 透传机制：`.npmrc` 的 key 会被转为 `npm_config_<key>` 环境变量，但 `electron_mirror` 不是 npm 的内置 key，会产生 warning
+- 环境变量 `ELECTRON_MIRROR` 是 `@electron/get` 的一级读取源，比 npm config 透传更可靠
+- **安装脚本必须做验证而非盲信**：`npm install` 返回 0 后应检查关键文件是否存在
+
+**调试技巧**：
+- `DEBUG=* node node_modules/electron/install.js` 可以观察 `@electron/get` 的完整下载/缓存/解压流程
+- `extract-zip` 在跨文件系统（WSL2→NTFS）场景性能极差，模拟测试时要注意环境差异
+
+### 8. 暗色模式 CSS 的铁律：永不硬编码背景色
+
+`select` 和 `time_input` 硬编码 `background: white`，暗色模式下浅色文字（`#E8E4F0`）在白底上对比度接近零。
+
+**核心原则**：
+- 所有背景色用主题 CSS 变量（`var(--moe-glass-*)`），让暗/亮模式自动切换
+- 亮色特殊需求通过 `[data-theme]` 选择器覆盖，而非反过来
+- `color-scheme: dark/light` 不仅影响 CSS，还控制浏览器原生控件（下拉菜单、日历选择器等）的渲染主题
+- 毛玻璃背景上文字对比度需要比纯色背景高一档——底层壁纸的亮度和色相不可预测，需要安全边际
+- 区分信息层级用 `opacity` 而非不同颜色变量：同一色相 + 不同透明度 = 和谐层级；不同色相 = 视觉碎片化
