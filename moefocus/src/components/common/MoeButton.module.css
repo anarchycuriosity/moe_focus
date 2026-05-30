@@ -30,7 +30,7 @@
 
 .secondary {
   background: rgba(255, 183, 197, 0.15);
-  color: var(--moe-pink-dark);
+  color: var(--moe-pink);
   border: 1px solid var(--moe-pink);
 }
 
@@ -38,14 +38,23 @@
   background: rgba(255, 183, 197, 0.25);
 }
 
+/* Light mode: use darker pink against light backgrounds */
+[data-theme] .secondary {
+  color: var(--moe-pink-dark);
+  border-color: var(--moe-pink-dark);
+}
+[data-theme] .secondary:hover {
+  background: rgba(255, 183, 197, 0.2);
+}
+
 .ghost {
   background: transparent;
-  color: var(--moe-text-light);
+  color: var(--moe-text);
 }
 
 .ghost:hover {
   background: rgba(255, 183, 197, 0.1);
-  color: var(--moe-text);
+  color: var(--moe-pink);
 }
 
 /* Sizes */

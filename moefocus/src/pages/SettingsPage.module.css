@@ -40,21 +40,23 @@
   background: transparent;
   font-family: var(--moe-font);
   font-size: 13px;
-  color: var(--moe-text-light);
+  color: var(--moe-text);
   border-radius: var(--moe-radius-sm);
   cursor: pointer;
   transition: all var(--moe-transition);
+  opacity: 0.7;
 }
 
 .tab:hover {
   background: rgba(255, 183, 197, 0.1);
-  color: var(--moe-text);
+  opacity: 1;
 }
 
 .active_tab {
   background: rgba(255, 183, 197, 0.2);
-  color: var(--moe-pink-dark);
+  color: var(--moe-pink);
   font-weight: 600;
+  opacity: 1;
 }
 
 .content {
