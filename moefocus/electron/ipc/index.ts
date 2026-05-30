@@ -5,7 +5,7 @@ import { git_service } from '../services/GitService'
 import { email_service } from '../services/EmailService'
 import { main_window } from '../main'
 
-export function registerAllHandlers(): void
+export async function registerAllHandlers(): Promise<void>
 {
   // Phase 1: 窗口控制 + 核心 CRUD (task/todo/focus/settings/file)
   registerWindowHandlers()
@@ -21,8 +21,8 @@ export function registerAllHandlers(): void
   // Phase 5: Git 同步 + QQ 邮箱
   registerGitHandlers()
   registerEmailHandlers()
-  // Phase 1: 文件操作 (Typora/壁纸)
-  registerFileHandlers()
+  // Phase 1: 文件操作 (Typora/壁纸) — async for dynamic imports
+  await registerFileHandlers()
 }
 
 // ===== Phase 1: 窗口控制 — 无边框窗口的最小化/最大化/关闭 =====
@@ -470,8 +470,12 @@ function registerEmailHandlers(): void
 
 // ===== Phase 1: 文件系统 — Typora/壁纸/图片选择 =====
 // Phase 4 补充: openInTypora; Phase 7 补充: setWallpaper
-function registerFileHandlers(): void
+async function registerFileHandlers(): Promise<void>
 {
+  const { existsSync, readdirSync } = await import('fs')
+  const { join } = await import('path')
+  const { app } = await import('electron')
+
   ipcMain.handle('file:openInTypora', async (_event, file_path) =>
   {
     const { exec } = await import('child_process')
@@ -481,6 +485,31 @@ function registerFileHandlers(): void
       if (error) console.error('Failed to open Typora:', error)
     })
     return { success: true }
+  })
+
+  ipcMain.handle('file:getWallpaperForPage', (_event, page: string) =>
+  {
+    const wallpapers_dir = join(app.getAppPath(), 'wallpapers')
+    if (!existsSync(wallpapers_dir)) return null
+
+    const files = readdirSync(wallpapers_dir)
+    const match = files.find((f) =>
+    {
+      const lower = f.toLowerCase()
+      return lower.startsWith(page.toLowerCase() + '.')
+    })
+    return match ? join(wallpapers_dir, match) : null
+  })
+
+  ipcMain.handle('file:getDiaryPictures', () =>
+  {
+    const diary_dir = join(app.getAppPath(), 'diary-pictures')
+    if (!existsSync(diary_dir)) return []
+    const files = readdirSync(diary_dir)
+    const image_exts = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp']
+    return files
+      .filter((f) => image_exts.some((ext) => f.toLowerCase().endsWith(ext)))
+      .map((f) => join(diary_dir, f))
   })
 
   ipcMain.handle('file:pickImage', async () =>

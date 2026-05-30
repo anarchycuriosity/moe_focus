@@ -61,7 +61,7 @@ app.whenReady().then(async () =>
   })
 
   await DatabaseService.instance.initialize()
-  registerAllHandlers()
+  await registerAllHandlers()
   scheduler_service.start()
   create_window()
 

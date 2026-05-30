@@ -106,6 +106,8 @@ const electron_api = {
     pick_image: () => ipcRenderer.invoke('file:pickImage'),
     set_wallpaper: (file_path: string) => ipcRenderer.invoke('file:setWallpaper', file_path),
     get_active_wallpaper: () => ipcRenderer.invoke('file:getActiveWallpaper'),
+    get_wallpaper_for_page: (page: string) => ipcRenderer.invoke('file:getWallpaperForPage', page),
+    get_diary_pictures: () => ipcRenderer.invoke('file:getDiaryPictures'),
     open_wallpapers_folder: () => ipcRenderer.invoke('file:openWallpapersFolder'),
     on_file_drop: (cb: (file_path: string) => void) =>
     {

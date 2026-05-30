@@ -5,10 +5,50 @@
   width: 100vw;
   height: 100vh;
   z-index: 0;
+}
+
+.bg_layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  /* Default gradient when no wallpaper is set */
+  transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.active {
+  opacity: 1;
+}
+
+.fade_in {
+  opacity: 0;
+  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.fade_out {
+  opacity: 1;
+  animation: fadeOut 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.default_gradient {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   background-image: linear-gradient(
     135deg,
     #FFF5EE 0%,
@@ -26,6 +66,6 @@
   width: 100%;
   height: 100%;
   /* Soft light overlay to make text readable */
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.12);
   pointer-events: none;
 }
