@@ -15,8 +15,8 @@
 ## 目录结构
 
 ```
-moefocus/
-├── electron/                # Electron 主进程 (Node.js)
+├── moefocus/                # 桌面端 (Electron + React)
+│   ├── electron/            # Electron 主进程 (Node.js)
 │   ├── main.ts              # 应用入口，窗口创建
 │   ├── preload.ts           # 安全桥接层，暴露 API 给渲染进程
 │   ├── ipc/                 # IPC 通信处理器
@@ -52,10 +52,17 @@ moefocus/
 │   └── assets/              # 静态资源 (壁纸/字体/图标)
 ├── sums/                    # 日记输出目录 (Markdown 文件)
 ├── data/                    # 数据同步目录 (JSON 导出，用于 PC 间同步)
-├── resources/               # 打包资源 (图标等)
-├── package.json             # 项目依赖与脚本
-├── electron.vite.config.ts  # 构建配置
-└── electron-builder.yml     # 打包配置
+│   ├── resources/           # 打包资源 (图标等)
+│   ├── package.json
+│   ├── electron.vite.config.ts
+│   └── electron-builder.yml
+├── moefocus-mobile/         # 移动端 (React Native + Expo)
+│   ├── App.tsx
+│   ├── src/screens/         # Today/Focus/Stats/Settings
+│   ├── src/store/           # Zustand stores
+│   ├── src/services/        # expo-sqlite database
+│   └── src/styles/          # Moe theme
+└── review/                  # 学习文档 (架构/阶段记录/数据管理)
 ```
 
 ## 数据存储
@@ -151,7 +158,7 @@ moefocus/
 打开 PowerShell，逐行执行：
 
 ```powershell
-cd C:\Users\curiosity\claude_pros\daily\moefocus
+cd moefocus
 
 # 设置 Electron 下载镜像
 $env:ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"
