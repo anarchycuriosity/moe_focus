@@ -1,20 +1,12 @@
-我们正在做一个叫MoeFocus的日记+专注时间统计的专注钟，类似windows的专注钟但有一些新功能集成。我们现在主要先做moefocus文件夹下的桌面端部分，moefocus-mobile文件夹下的移动端先不管。现在部分模块已经比较稳定了，但有以下问题。
+我们正在做一个叫MoeFocus的日记+专注时间统计的专注钟，类似windows的专注钟但有一些新功能集成。我们现在主要先做moefocus文件夹下的桌面端部分，moefocus-mobile文件夹下的移动端先不管。修复记录的内容已经被修复了，现在部分模块已经比较稳定了，但有以下问题。你对以下的每点内容都要分别提交，而不是改完所有才提交。**每次对话结束前必须按下方格式在本文末尾追加修复记录review，方便下次开新终端循环。**
 
-0：对以下的更改都要用git追踪各个步骤，方便reset。
+1：日记大图轮换的效果不佳，我希望改成滑动更新的那种动画效果。readme中补充提示图片应该命名为英文而不是中文否则识别不出。
 
-1：侧边栏设置的默认专注时间设置不生效。
+2：每次都要到仓库执行那行命令有些太繁琐了，希望包装成点击某个文件就可以启动的形式。
 
-2：时钟倒计时有一个不必要的准备时间倒计时，删掉这个功能。
+3：readme里面不要把我的私人仓库地址暴露出去。
 
-3：侧边栏统计模块，柱状图不只是要统计时间，而是要看到每天每个事项都花了多少时间，在同一条柱子上用不同颜色块显示出来。在月统计中，如果有同名的任务就合并统计时间，比如第一天有abc三个任务，第二天有ade三个任务，那么在月统计中a会加上这两天的a的计时。
 
-4：自定义壁纸异常，无法看到自定义壁纸，工作原理不明。
-
-5：readme要及时更新。
-
-6：日记部分的大图不能正常显示，也没有readme部分提示怎么自定义。
-
-7：把GUI的卡片部分尝试改成类似毛玻璃那种方便看到壁纸的效果，不一定是毛玻璃效果，但一定要方便看到壁纸。
 
 ---
 
@@ -65,3 +57,46 @@
 - 壁纸文件夹：`moefocus/wallpapers/` (today/diary/statistics/settings.png)
 - 日记图片：`moefocus/diary-pictures/` (4张截图)
 - 提交记录：5 commits ahead of origin/main，待 push
+
+---
+
+## 2026-05-31 第二轮修复记录 (claude: Kurisu)
+
+### 已完成的原始任务 (3 commits)
+- **#1 日记大图滑动动画**: 双槽位 slide 替换 fade，cubic-bezier 600ms
+- **#2 一键启动**: `start-dev.bat`，双击启动，自动检测 node_modules
+- **#3 移除私人仓库地址**: README 仓库地址表格删除
+
+### 隐私与同步修复 (1 commit, `7194ede`)
+- **schema.sql**: 硬编码 `github.remoteUrl` 默认值改为空字符串
+- **GitService**: `commit()` 改为仅 add `sums/` + `data/`，不再同步整个 userData（含 db）
+- **GitService**: `init_repo()` 自动在 userData 创建 `.gitignore` 排除 `*.db`
+- **main.ts**: 启动时自动 `git init` + `git pull` 拉取远程同步
+- **新增 `check_sync_status()`**: 返回仓库状态/远程/未提交/ahead/behind/最近提交
+- **设置页 GitHub 标签页**: 新增手动 Pull/Commit/Push 按钮，状态显示改为可读摘要
+
+### 图表配色修复 (1 commit, `8cebb3b`)
+- **根因**: SQL `COALESCE(t.color, '#FFB7C5')` 所有默认任务返回同色，前端 `||` 短路失效
+- **方案**: 提取 `chartColors.ts`，16 色高对比度调色板；`get_subject_color()` 按事务名哈希分配
+- **影响**: WeeklyChart + MonthlyChart 堆叠柱状图 + 饼图视图
+
+### 暗色模式 (1 commit, `fc9e5ae`)
+- **架构**: `:root` = 暗色默认；`[data-theme="sakura/lavender/mint"]` = 亮色变体
+- **玻璃拟态变量**: `--moe-glass-bg/border/hover/sidebar`，暗/亮自适应（18 个 CSS/TSX 文件）
+- **持久化**: `ui.darkMode` 存入 SQLite，App.tsx 启动时 `init_theme()` 应用，重启保持
+- **设置页**: 暗色/亮色切换 + 亮色主题选择器，均即时生效（调用 `apply_theme()`）
+- **亮色字体加深**: `#5B4B59→#3A2E36`，提高卡片文字对比度
+- **图表适配**: CartesianGrid/Axis/Tooltip 内联颜色改为 `var(--moe-*)`
+- **Electron 窗口**: `backgroundColor: '#1A1A2E'`
+
+### 关键文件变更索引
+| 模块 | 文件 |
+|------|------|
+| 滑动动画 | `src/pages/DiaryPage.tsx`, `DiaryPage.module.css` |
+| 图表配色 | `src/styles/chartColors.ts`(新), `WeeklyChart.tsx`, `MonthlyChart.tsx` |
+| 暗色主题 | `src/styles/global.css`, `src/styles/theme.ts`, `src/App.tsx` |
+| 玻璃拟态 | `MoeCard.module.css`, `TaskCard.module.css`, `TodayTaskItem.module.css`, `Sidebar.module.css`, `TitleBar.module.css`, `MoeInput.module.css`, `AnimeBackground.module.css`, `PhotoFrame.module.css`, `TodayPage.module.css`, `DiaryPage.module.css` |
+| 同步/隐私 | `electron/services/GitService.ts`, `electron/ipc/index.ts`, `electron/preload.ts`, `electron/main.ts`, `schema.sql` |
+| 设置页 | `src/pages/SettingsPage.tsx` |
+| 类型定义 | `src/types/electron.d.ts` |
+| 文档 | `README.md`, `prompt.md`
