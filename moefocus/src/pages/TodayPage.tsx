@@ -42,9 +42,17 @@ export function TodayPage(): JSX.Element
     {
       const task_id = active_data.task_id as number
       const title = (active_data.label as string) || '未命名'
+
+      // Skip duplicate — if already in today, just switch focus to it
+      const already_exists = items.some((item) => item.task_id === task_id)
+      if (already_exists)
+      {
+        set_subject(title)
+        return
+      }
+
       add_todo(task_id, title).then(() =>
       {
-        // Auto-set as focus subject — drag to today = start focusing on this
         set_subject(title)
       }).catch((err: Error) =>
       {

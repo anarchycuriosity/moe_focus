@@ -25,13 +25,6 @@ export function registerAllHandlers(): void
   registerFileHandlers()
 }
 
-// Helper to get last inserted row id
-function last_insert_id(db: () => DatabaseService): number
-{
-  const row = db().get('SELECT last_insert_rowid() as id') as { id: number } | undefined
-  return row?.id ?? 0
-}
-
 // ===== Phase 1: 窗口控制 — 无边框窗口的最小化/最大化/关闭 =====
 function registerWindowHandlers(): void
 {
@@ -80,11 +73,10 @@ function registerTaskHandlers(): void
       'INSERT INTO tasks (title, category, icon, color, sort_order) VALUES (?, ?, ?, ?, ?)',
       [task.title, task.category || 'General', task.icon || 'star', task.color || '#FFB7C5', task.sort_order || 0]
     )
-    const new_id = last_insert_id(db)
-    console.log('[IPC] task:create, new_id:', new_id)
-    const created = db().get('SELECT * FROM tasks WHERE id = ?', [new_id])
-    console.log('[IPC] created task:', created)
-    return created || null
+    const id_row = db().get('SELECT MAX(id) as new_id FROM tasks')
+    const new_id = (id_row as { new_id: number } | undefined)?.new_id ?? 0
+    if (new_id === 0) return null
+    return db().get('SELECT * FROM tasks WHERE id = ?', [new_id]) || null
   })
 
   ipcMain.handle('task:update', (_event, id, data) =>

@@ -22,11 +22,11 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
   add_task: async (title, category) =>
   {
-    console.log('[useTaskStore] add_task called:', title)
     const task = await window.electronAPI.tasks.create({ title, category })
-    console.log('[useTaskStore] task created:', task)
-    set({ tasks: [...get().tasks, task] })
-    console.log('[useTaskStore] state updated, task count:', get().tasks.length)
+    if (task)
+    {
+      set({ tasks: [...get().tasks, task] })
+    }
   },
 
   remove_task: async (id) =>

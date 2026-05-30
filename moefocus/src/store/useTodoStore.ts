@@ -34,20 +34,14 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
 
   add_todo: async (task_id, custom_title) =>
   {
-    console.log('[TodoStore] add_todo:', task_id, custom_title, get().date)
     const item = await window.electronAPI.todos.add({
       task_id,
       custom_title,
       date: get().date
     })
-    console.log('[TodoStore] result:', item)
     if (item && item.id != null)
     {
       set({ items: [...get().items, item] })
-    }
-    else
-    {
-      console.warn('[TodoStore] IPC returned null/undefined')
     }
   },
 
