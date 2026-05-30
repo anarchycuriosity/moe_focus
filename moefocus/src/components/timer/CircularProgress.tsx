@@ -4,7 +4,7 @@ interface Props
   total_seconds: number
   size?: number
   stroke_width?: number
-  phase: 'focus' | 'rest' | 'idle' | 'paused'
+  phase: 'focus' | 'rest' | 'idle' | 'paused' | 'completed'
 }
 
 export function CircularProgress({

@@ -16,22 +16,44 @@ export function FocusTimer({ expanded = false }: Props): JSX.Element
     phase, remaining_seconds, total_seconds, subject
   } = useFocusStore()
 
-  const { start, pause, resume, stop } = useFocusTimer()
+  const { start, pause, resume, stop, reset } = useFocusTimer()
 
   const timer_size = expanded ? 260 : 180
+  const is_active = phase === 'focus' || phase === 'rest' || phase === 'paused'
 
   return (
     <MoeCard className={`${styles.timer} ${expanded ? styles.expanded : ''}`}>
       <div className={styles.clock_area}>
-        <CircularProgress
-          remaining_seconds={remaining_seconds}
-          total_seconds={total_seconds}
-          size={timer_size}
-          phase={phase}
-        />
+        {is_active ? (
+          <CircularProgress
+            remaining_seconds={remaining_seconds}
+            total_seconds={total_seconds}
+            size={timer_size}
+            phase={phase}
+          />
+        ) : (
+          <div
+            style={{
+              width: timer_size,
+              height: timer_size,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
+            }}
+          >
+            <span style={{ fontSize: '40px', opacity: 0.6 }}>
+              {phase === 'completed' ? '🎉' : '⏱️'}
+            </span>
+            <span style={{ fontSize: '14px', color: 'var(--moe-text-light)' }}>
+              {phase === 'completed' ? '专注完成！' : '准备开始'}
+            </span>
+          </div>
+        )}
       </div>
 
-      {phase !== 'idle' && subject && (
+      {is_active && subject && (
         <div className={styles.subject}>
           📌 {subject}
         </div>
@@ -43,6 +65,7 @@ export function FocusTimer({ expanded = false }: Props): JSX.Element
         on_pause={pause}
         on_resume={resume}
         on_stop={stop}
+        on_reset={reset}
       />
     </MoeCard>
   )

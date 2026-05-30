@@ -39,6 +39,7 @@ export function MonthlyChart({ month, chart_type }: Props): JSX.Element
 
   for (const row of raw_data)
   {
+    if (row.subject === '专注') continue
     const d = dayjs(row.date)
     // Calculate week of month (1-based)
     const dom = d.date()

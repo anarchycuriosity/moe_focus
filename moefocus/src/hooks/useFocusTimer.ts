@@ -92,5 +92,11 @@ export function useFocusTimer()
     s.end_session()
   }
 
-  return { start, pause, resume, stop }
+  const reset = () =>
+  {
+    clear()
+    useFocusStore.getState().reset()
+  }
+
+  return { start, pause, resume, stop, reset }
 }

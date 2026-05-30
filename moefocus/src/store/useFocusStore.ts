@@ -4,7 +4,7 @@
 
 import { create } from 'zustand'
 
-export type TimerPhase = 'idle' | 'focus' | 'rest' | 'paused'
+export type TimerPhase = 'idle' | 'focus' | 'rest' | 'paused' | 'completed'
 
 interface FocusState
 {
@@ -93,7 +93,7 @@ export const useFocusStore = create<FocusStore>((set, get) => ({
     })
   },
 
-  end_session: () => set({ ...initial_state }),
+  end_session: () => set({ phase: 'completed', remaining_seconds: 0 }),
 
   reset: () => set({ ...initial_state })
 }))

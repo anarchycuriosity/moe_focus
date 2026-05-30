@@ -34,10 +34,11 @@ export function WeeklyChart({ week_start, chart_type }: Props): JSX.Element
     })
   }, [week_start])
 
-  // Build a set of all unique subjects and assign colors
+  // Build a set of all unique subjects and assign colors (skip default "专注")
   const subject_set = new Map<string, string>() // subject → color
   for (const row of raw_data)
   {
+    if (row.subject === '专注') continue
     if (!subject_set.has(row.subject))
     {
       subject_set.set(row.subject, row.color || fallback_colors[subject_set.size % fallback_colors.length])
@@ -46,10 +47,9 @@ export function WeeklyChart({ week_start, chart_type }: Props): JSX.Element
   const subjects = Array.from(subject_set.keys())
 
   // Build chart data: one entry per day, each subject as a key
-  const start = dayjs(week_start)
   const chart_data = Array.from({ length: 7 }, (_, i) =>
   {
-    const date = start.add(i, 'day').format('YYYY-MM-DD')
+    const date = dayjs(week_start).add(i, 'day').format('YYYY-MM-DD')
     const entry: Record<string, string | number> = { name: day_labels[i] }
     for (const subj of subjects)
     {
