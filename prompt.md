@@ -1,12 +1,55 @@
-我们正在做一个叫MoeFocus的日记+专注时间统计的专注钟，类似windows的专注钟但有一些新功能集成。我们现在主要先做moefocus文件夹下的桌面端部分，moefocus-mobile文件夹下的移动端先不管。修复记录的内容已经被修复了，现在部分模块已经比较稳定了，但有以下问题。你对以下的每点内容都要分别提交，而不是改完所有才提交。**每次对话结束前必须按下方格式在本文末尾追加修复记录review，方便下次开新终端循环。**
+我们正在做一个叫MoeFocus的日记+专注时间统计的专注钟，类似windows的专注钟但有一些新功能集成。我们现在主要先做moefocus文件夹下的桌面端部分，moefocus-mobile文件夹下的移动端先不管。修复记录的内容已经被修复了，现在部分模块已经比较稳定了，但有以下问题你需要修复。你对以下的每点内容都要分别提交，而不是改完所有才提交。**每次对话结束前必须按下方格式在本文末尾追加修复记录review，方便下次开新终端循环。**
 
-1：重大bug：切换模块后计时会重置
+1：我尝试克隆一份来测试，报错如下。你对比一下当前项目的环境和模拟的客户测试的文件夹下的环境差别，重写安装脚本，你先自己在外面文件夹克隆测试一次看看能不能跑通，能跑通才算数，测试完删掉那个文件夹。
 
-2：暗色模式下设置部分的按钮字体不是很显眼。
+```powershell
+ ====================================
+  MoeFocus - Dev Server Launcher
+ ====================================
 
-3：在readme中明确用户应该如何使用本仓库，同时我想知道数据是怎么做到同步的，如果我想多台设备之间同步就必须通过一个额外的仓库来存数据吗.
+[*] Starting dev server...
+    Press Ctrl+C to stop.
 
 
+> moefocus@1.0.0 dev
+> electron-vite dev
+
+vite v5.4.21 building SSR bundle for development...
+✓ 8 modules transformed.
+out/main/index.js  36.06 kB
+✓ built in 127ms
+
+build the electron main process successfully
+
+-----
+
+vite v5.4.21 building SSR bundle for development...
+✓ 1 modules transformed.
+out/preload/index.js  5.53 kB
+✓ built in 11ms
+
+build the electron preload files successfully
+
+-----
+
+dev server running for the electron renderer process at:
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+error during start dev server and electron app:
+Error: Electron uninstall
+    at getElectronPath (file:///C:/Users/curiosity/claude_pros/moe_fo_cli_test/moe_focus/moefocus/node_modules/electron-vite/dist/chunks/lib-BmEkZIgk.mjs:129:19)
+    at startElectron (file:///C:/Users/curiosity/claude_pros/moe_fo_cli_test/moe_focus/moefocus/node_modules/electron-vite/dist/chunks/lib-BmEkZIgk.mjs:198:26)
+    at createServer (file:///C:/Users/curiosity/claude_pros/moe_fo_cli_test/moe_focus/moefocus/node_modules/electron-vite/dist/chunks/lib-t2ExBjL5.mjs:74:14)
+    at async CAC.<anonymous> (file:///C:/Users/curiosity/claude_pros/moe_fo_cli_test/moe_focus/moefocus/node_modules/electron-vite/dist/cli.mjs:67:9)
+
+[X] Dev server exited with an error.
+Press any key to continue . . .
+```
+
+
+
+2:暗色模式下的设置部分的字体依旧非常丑陋根本看不清，尤其是设置下的GitHub的反馈部分。
 
 ---
 
@@ -132,3 +175,39 @@
 | 计时器 | `src/store/useFocusStore.ts`, `src/components/timer/SessionConfig.tsx` |
 | 按钮/UI | `src/components/common/MoeButton.module.css`, `src/pages/SettingsPage.module.css` |
 | 文档 | `README.md` |
+
+---
+## 2026-05-31 第四轮修复记录 (claude: Kurisu)
+
+### 已完成的两个问题 (2 commits)
+
+**1. 重写安装脚本 — 解决克隆后 Electron 未安装** (`e8bcae7`)
+- **根因**: `electron` npm 包的 postinstall 从 GitHub 下载二进制文件，国内网络直连超时/失败。`.npmrc` 只配了 npm registry 镜像，未配 Electron 下载源。`start-dev.bat` / `setup.ps1` 也未设 `ELECTRON_MIRROR` 环境变量。
+- **修复**:
+  - `start-dev.bat`：开头设置 `ELECTRON_MIRROR` 和 `ELECTRON_BUILDER_BINARIES_MIRROR` 指向 npmmirror
+  - `npm install` 后新增验证步骤：检测 `node_modules\electron\dist\electron.exe` 是否存在
+  - 缺失则执行 `node node_modules\electron\install.js` 重试下载解压
+  - 二次确认仍然缺失时给出明确排查建议（网络 / 清缓存）
+  - `setup.ps1` 同样新增验证+重试逻辑，并提示可双击 `start-dev.bat` 一键启动
+- **未改动 `.npmrc`**: npm 不认识 `electron_mirror` 配置键会产生警告，环境变量是 `@electron/get` 的标准读取方式
+
+**2. 暗色模式下设置页表单控件 + GitHub 反馈区域字体修复** (`3a6e62b`)
+- **根因**: 
+  - `.select` / `.time_input` 硬编码 `background: white`，暗色下 `--moe-text` (`#E8E4F0` 浅色) 在白底上不可见
+  - `.note` 提示文字用 `--moe-text-light` (`#A09BB0`)，暗色毛玻璃上对比度不足
+  - `.git_status` 用暖桃色 `rgba(255,245,238,0.5)` 背景 + `--moe-text-light`，暗色下突兀且暗淡
+- **修复**:
+  - `.select` / `.time_input`：暗色下 `background: var(--moe-glass-hover)` + `color-scheme: dark`；亮色 `[data-theme]` 覆盖回 `white` + `color-scheme: light`
+  - `.note`：`color: var(--moe-text)` + `opacity: 0.75`，替代 `--moe-text-light`
+  - `.git_status`：背景改为 `var(--moe-glass-bg)` 自适应暗/亮，文字改为 `--moe-text`，字号从 11px 提至 12px，行高 1.7
+
+### 关键文件变更索引
+| 模块 | 文件 |
+|------|------|
+| 安装脚本 | `start-dev.bat`, `setup.ps1` |
+| 设置页样式 | `src/pages/SettingsPage.module.css` |
+| 文档 | `prompt.md` |
+
+### 项目现状
+- 提交记录：7 commits ahead of origin/main（含本轮 2 commits），待 push
+- 壁纸/日记图片正常，核心功能（计时/统计/同步/设置）稳定
