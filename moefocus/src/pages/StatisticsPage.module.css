@@ -1,0 +1,11 @@
+.page {
+  padding: 24px;
+  height: 100%;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--moe-text);
+  margin-bottom: 20px;
+}

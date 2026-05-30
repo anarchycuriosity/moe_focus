@@ -1,0 +1,50 @@
+.frame {
+  cursor: grab;
+  user-select: none;
+  transition: box-shadow var(--moe-transition);
+}
+
+.frame:hover {
+  filter: brightness(1.05);
+}
+
+.dragging {
+  box-shadow: 0 8px 30px var(--moe-shadow);
+}
+
+.frame_border {
+  padding: 8px;
+  background: linear-gradient(135deg, #FFB7C5, #C9A9DC, #FFB7C5);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px var(--moe-shadow);
+}
+
+.frame_inner {
+  width: 80px;
+  height: 80px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.frame_image {
+  font-size: 40px;
+  transition: transform 0.3s ease;
+}
+
+.frame:hover .frame_image {
+  transform: scale(1.1);
+}
+
+.frame_decor {
+  position: absolute;
+  top: -6px;
+  right: 6px;
+}
+
+.ribbon {
+  font-size: 14px;
+}

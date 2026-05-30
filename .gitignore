@@ -1,0 +1,12 @@
+node_modules/
+out/
+dist/
+.expo/
+*.db
+*.db-wal
+*.db-shm
+.env
+.DS_Store
+thumbs.db
+web-build/
+.claude/

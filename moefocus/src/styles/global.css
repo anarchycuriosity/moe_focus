@@ -1,0 +1,82 @@
+@import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@300;400;500;700;800&display=swap');
+
+:root {
+  --moe-pink: #FFB7C5;
+  --moe-pink-dark: #E892A3;
+  --moe-lavender: #C9A9DC;
+  --moe-lavender-dark: #A98CC4;
+  --moe-mint: #B5EAD7;
+  --moe-mint-dark: #8ECDB5;
+  --moe-sky: #C7CEEA;
+  --moe-cream: #FFF5EE;
+  --moe-text: #5B4B59;
+  --moe-text-light: #8B7B89;
+  --moe-border: #F0E0E8;
+  --moe-shadow: rgba(255, 183, 197, 0.25);
+  --moe-radius: 16px;
+  --moe-radius-sm: 10px;
+  --moe-radius-xs: 6px;
+  --moe-font: 'M PLUS Rounded 1c', 'Microsoft YaHei', sans-serif;
+  --moe-transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--moe-font);
+  color: var(--moe-text);
+  background-color: var(--moe-cream);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--moe-pink);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--moe-pink-dark);
+}
+
+/* Drag region for frameless window */
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* Selection colors */
+::selection {
+  background: var(--moe-pink);
+  color: white;
+}
+
+/* Focus styles */
+:focus-visible {
+  outline: 2px solid var(--moe-lavender);
+  outline-offset: 2px;
+}

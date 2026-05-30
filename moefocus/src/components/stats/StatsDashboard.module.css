@@ -1,0 +1,29 @@
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.view_toggle, .chart_toggle {
+  display: flex;
+  gap: 4px;
+}
+
+.chart_card {
+  padding: 24px;
+}
+
+.chart_title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--moe-text);
+  margin-bottom: 16px;
+}

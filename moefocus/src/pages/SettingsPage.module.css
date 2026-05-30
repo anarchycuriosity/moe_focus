@@ -1,0 +1,146 @@
+.page {
+  padding: 24px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--moe-text);
+}
+
+.save_msg {
+  font-size: 12px;
+  color: var(--moe-mint-dark);
+  background: rgba(181, 234, 215, 0.2);
+  padding: 2px 10px;
+  border-radius: 20px;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  font-family: var(--moe-font);
+  font-size: 13px;
+  color: var(--moe-text-light);
+  border-radius: var(--moe-radius-sm);
+  cursor: pointer;
+  transition: all var(--moe-transition);
+}
+
+.tab:hover {
+  background: rgba(255, 183, 197, 0.1);
+  color: var(--moe-text);
+}
+
+.active_tab {
+  background: rgba(255, 183, 197, 0.2);
+  color: var(--moe-pink-dark);
+  font-weight: 600;
+}
+
+.content {
+  padding: 24px;
+  max-width: 600px;
+}
+
+.section h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--moe-text);
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1.5px solid var(--moe-border);
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--moe-border);
+}
+
+.field label {
+  font-size: 14px;
+  color: var(--moe-text);
+}
+
+.select {
+  font-family: var(--moe-font);
+  font-size: 13px;
+  padding: 6px 12px;
+  border: 1.5px solid var(--moe-border);
+  border-radius: var(--moe-radius-xs);
+  background: white;
+  color: var(--moe-text);
+  outline: none;
+  cursor: pointer;
+}
+
+.select:focus {
+  border-color: var(--moe-pink);
+}
+
+.time_input {
+  font-family: var(--moe-font);
+  font-size: 13px;
+  padding: 6px 12px;
+  border: 1.5px solid var(--moe-border);
+  border-radius: var(--moe-radius-xs);
+  background: white;
+  color: var(--moe-text);
+  outline: none;
+}
+
+.time_input:focus {
+  border-color: var(--moe-pink);
+}
+
+.note {
+  font-size: 12px;
+  color: var(--moe-text-light);
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+.success_msg {
+  font-size: 12px;
+  color: var(--moe-mint-dark);
+}
+
+.error_msg {
+  font-size: 12px;
+  color: #FF6B6B;
+}
+
+.git_status {
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(255, 245, 238, 0.5);
+  border: 1px solid var(--moe-border);
+  border-radius: var(--moe-radius-xs);
+  font-size: 11px;
+  color: var(--moe-text-light);
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow: auto;
+}

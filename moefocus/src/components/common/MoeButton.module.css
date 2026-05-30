@@ -1,0 +1,68 @@
+.btn {
+  font-family: var(--moe-font);
+  font-weight: 500;
+  border: none;
+  border-radius: var(--moe-radius-sm);
+  cursor: pointer;
+  transition: all var(--moe-transition);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  letter-spacing: 0.3px;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+/* Variants */
+.primary {
+  background: linear-gradient(135deg, var(--moe-pink), var(--moe-lavender));
+  color: white;
+  box-shadow: 0 2px 8px var(--moe-shadow);
+}
+
+.primary:hover {
+  box-shadow: 0 4px 16px var(--moe-shadow);
+  transform: translateY(-1px);
+}
+
+.secondary {
+  background: rgba(255, 183, 197, 0.15);
+  color: var(--moe-pink-dark);
+  border: 1px solid var(--moe-pink);
+}
+
+.secondary:hover {
+  background: rgba(255, 183, 197, 0.25);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--moe-text-light);
+}
+
+.ghost:hover {
+  background: rgba(255, 183, 197, 0.1);
+  color: var(--moe-text);
+}
+
+/* Sizes */
+.sm {
+  padding: 4px 12px;
+  font-size: 12px;
+  height: 28px;
+}
+
+.md {
+  padding: 8px 20px;
+  font-size: 14px;
+  height: 36px;
+}
+
+.lg {
+  padding: 12px 28px;
+  font-size: 16px;
+  height: 44px;
+}

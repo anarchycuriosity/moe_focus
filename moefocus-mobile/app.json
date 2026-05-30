@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "MoeFocus",
+    "slug": "moefocus-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./src/assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#FFF5EE"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.moefocus.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#FFF5EE"
+      },
+      "package": "com.moefocus.app"
+    },
+    "plugins": [
+      "expo-notifications"
+    ]
+  }
+}

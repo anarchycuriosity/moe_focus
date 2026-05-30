@@ -1,0 +1,19 @@
+.card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  border-radius: var(--moe-radius);
+  border: 1px solid var(--moe-border);
+  transition: all var(--moe-transition);
+}
+
+.elevated {
+  box-shadow: 0 4px 20px var(--moe-shadow);
+}
+
+.elevated:hover {
+  box-shadow: 0 8px 30px var(--moe-shadow);
+}
+
+.flat {
+  box-shadow: none;
+}
