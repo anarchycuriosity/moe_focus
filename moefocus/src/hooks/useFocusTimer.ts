@@ -96,7 +96,12 @@ export function useFocusTimer()
   {
     clear()
     const s = useFocusStore.getState()
-    if (s.session_id) await window.electronAPI.focus.abandon(s.session_id)
+    if (s.session_id)
+    {
+      // Calculate actual elapsed time even for abandoned sessions
+      const actual = s.total_seconds - s.remaining_seconds
+      await window.electronAPI.focus.abandon(s.session_id, actual > 0 ? actual : 0)
+    }
     s.end_session()
   }
 

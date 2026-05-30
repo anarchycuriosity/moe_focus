@@ -31,7 +31,7 @@ const electron_api = {
     pause: (id: number) => ipcRenderer.invoke('focus:pause', id),
     resume: (id: number) => ipcRenderer.invoke('focus:resume', id),
     complete: (id: number, actual_sec: number) => ipcRenderer.invoke('focus:complete', id, actual_sec),
-    abandon: (id: number) => ipcRenderer.invoke('focus:abandon', id),
+    abandon: (id: number, actual_sec?: number) => ipcRenderer.invoke('focus:abandon', id, actual_sec),
     get_current: () => ipcRenderer.invoke('focus:getCurrent'),
     get_by_date: (date: string) => ipcRenderer.invoke('focus:getByDate', date),
     on_tick: (cb: (remaining: number) => void) =>
