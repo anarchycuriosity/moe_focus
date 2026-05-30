@@ -48,12 +48,9 @@ export const useFocusStore = create<FocusStore>((set, get) => ({
 
   set_config: (focus_min, rest_min) =>
   {
-    const total = focus_min * 60
     set({
       focus_duration_min: focus_min,
-      rest_duration_min: rest_min,
-      remaining_seconds: total,
-      total_seconds: total
+      rest_duration_min: rest_min
     })
   },
 

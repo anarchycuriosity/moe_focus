@@ -18,6 +18,12 @@ export function SessionConfig(): JSX.Element
   {
     async function load_defaults()
     {
+      const phase = useFocusStore.getState().phase
+      if (phase === 'focus' || phase === 'rest' || phase === 'paused')
+      {
+        return
+      }
+
       const focus_str = await window.electronAPI.settings.get('focus.defaultDuration')
       const rest_str = await window.electronAPI.settings.get('focus.defaultRestDuration')
       const focus_val = focus_str ? parseInt(focus_str, 10) : 25
