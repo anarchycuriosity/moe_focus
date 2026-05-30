@@ -123,13 +123,6 @@
 2. 应用关闭时自动 `git commit` + `git push`
 3. 应用启动时自动 `git pull`，检测到新数据则导入
 
-### 仓库地址
-
-| 用途 | 地址 |
-|------|------|
-| 源代码 | https://github.com/anarchycuriosity/moe_focus |
-| 数据同步 | https://github.com/anarchycuriosity/moe_focus_data |
-
 ### 配置步骤
 
 1. 数据仓库已预填在应用设置中（GitHub 标签页）
