@@ -87,6 +87,7 @@ const electron_api = {
   git:
   {
     get_status: () => ipcRenderer.invoke('git:getStatus'),
+    check_sync_status: () => ipcRenderer.invoke('git:checkSyncStatus'),
     commit: (message: string) => ipcRenderer.invoke('git:commit', message),
     push: () => ipcRenderer.invoke('git:push'),
     pull: () => ipcRenderer.invoke('git:pull'),

@@ -434,6 +434,7 @@ function registerSettingsHandlers(): void
 function registerGitHandlers(): void
 {
   ipcMain.handle('git:getStatus', async () => git_service.getStatus())
+  ipcMain.handle('git:checkSyncStatus', async () => git_service.check_sync_status())
   ipcMain.handle('git:commit', async (_event, message) => git_service.commit(message))
   ipcMain.handle('git:push', async () => git_service.push())
   ipcMain.handle('git:pull', async () => git_service.pull())

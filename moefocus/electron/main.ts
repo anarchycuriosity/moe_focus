@@ -9,6 +9,7 @@ import { is } from '@electron-toolkit/utils'
 import { registerAllHandlers } from './ipc'
 import { DatabaseService } from './services/DatabaseService'
 import { scheduler_service } from './services/SchedulerService'
+import { git_service } from './services/GitService'
 
 let main_window: BrowserWindow | null = null
 
@@ -64,6 +65,22 @@ app.whenReady().then(async () =>
 
   await DatabaseService.instance.initialize()
   await registerAllHandlers()
+
+  // Startup sync: init repo + pull from remote if configured
+  try
+  {
+    await git_service.init_repo()
+    const remote = await git_service.get_remote()
+    if (remote.url) {
+      console.log('[sync] pulling from remote:', remote.url)
+      await git_service.pull()
+    }
+  }
+  catch (e)
+  {
+    console.log('[sync] startup sync skipped:', e)
+  }
+
   scheduler_service.start()
   create_window()
 

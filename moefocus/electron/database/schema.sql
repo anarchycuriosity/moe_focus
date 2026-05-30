@@ -81,7 +81,7 @@ INSERT OR IGNORE INTO settings (key, value) VALUES ('diary.rotateEnabled', 'true
 INSERT OR IGNORE INTO settings (key, value) VALUES ('diary.rotateInterval', '8');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('email.reminderTime', '22:30');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('email.reminderEnabled', 'true');
-INSERT OR IGNORE INTO settings (key, value) VALUES ('github.remoteUrl', 'https://github.com/anarchycuriosity/moe_focus_data.git');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('github.remoteUrl', '');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('github.branch', 'main');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('ui.theme', 'sakura');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('ui.chartType', 'bar');

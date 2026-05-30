@@ -72,10 +72,52 @@ export function SettingsPage(): JSX.Element
     set_email_test_msg(result.success ? '连接成功!' : `连接失败: ${result.error}`)
   }
 
-  const handle_test_git = async () =>
+  const handle_check_sync = async () =>
   {
-    const result = await window.electronAPI.git.get_status()
-    set_git_status(JSON.stringify(result, null, 2))
+    set_git_status('检查中...')
+    const result = await window.electronAPI.git.check_sync_status()
+    if (result.error && !result.is_repo)
+    {
+      set_git_status('Git 仓库未初始化，请先配置远程仓库地址')
+      return
+    }
+    const lines: string[] = []
+    if (result.has_remote)
+    {
+      lines.push(`远程: ${result.remote_url}`)
+    }
+    else
+    {
+      lines.push('远程: 未配置')
+    }
+    lines.push(`分支: ${result.branch || 'main'}`)
+    lines.push(`未提交: ${result.uncommitted} 个文件`)
+    if (result.ahead > 0) lines.push(`待推送: ${result.ahead} 个提交`)
+    if (result.behind > 0) lines.push(`待拉取: ${result.behind} 个提交`)
+    if (result.ahead === 0 && result.behind === 0 && result.has_remote) lines.push('已同步')
+    if (result.last_commit) lines.push(`最近提交: ${result.last_commit}`)
+    set_git_status(lines.join('\n'))
+  }
+
+  const handle_git_pull = async () =>
+  {
+    set_git_status('拉取中...')
+    const result = await window.electronAPI.git.pull()
+    set_git_status(result.success ? '拉取成功' : `拉取失败: ${result.error}`)
+  }
+
+  const handle_git_push = async () =>
+  {
+    set_git_status('推送中...')
+    const result = await window.electronAPI.git.push()
+    set_git_status(result.success ? '推送成功' : `推送失败: ${result.error}`)
+  }
+
+  const handle_git_commit = async () =>
+  {
+    set_git_status('提交中...')
+    const result = await window.electronAPI.git.commit('manual: sync from settings')
+    set_git_status(result.success ? `提交成功: ${result.message}` : `提交失败: ${result.message}`)
   }
 
   const handle_pick_typora = async () =>
@@ -347,7 +389,7 @@ export function SettingsPage(): JSX.Element
               value={settings['github.branch'] || 'main'}
               onChange={(e) => update('github.branch', e.target.value)}
             />
-            <div style={{ marginTop: '16px', display: 'flex', gap: '8px' }}>
+            <div style={{ marginTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <MoeButton variant="secondary" size="sm" onClick={async () =>
               {
                 await window.electronAPI.git.set_remote(settings['github.remoteUrl'] || '')
@@ -355,8 +397,19 @@ export function SettingsPage(): JSX.Element
               }}>
                 应用远程地址
               </MoeButton>
-              <MoeButton variant="ghost" size="sm" onClick={handle_test_git}>
-                检查状态
+              <MoeButton variant="ghost" size="sm" onClick={handle_check_sync}>
+                检查同步状态
+              </MoeButton>
+            </div>
+            <div style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <MoeButton variant="secondary" size="sm" onClick={handle_git_pull}>
+                拉取 (Pull)
+              </MoeButton>
+              <MoeButton variant="secondary" size="sm" onClick={handle_git_commit}>
+                提交 (Commit)
+              </MoeButton>
+              <MoeButton variant="secondary" size="sm" onClick={handle_git_push}>
+                推送 (Push)
               </MoeButton>
             </div>
             {git_status && (

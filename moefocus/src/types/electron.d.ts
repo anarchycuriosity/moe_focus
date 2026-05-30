@@ -155,6 +155,17 @@ interface ElectronAPI
   }
   git: {
     get_status: () => Promise<Record<string, unknown>>
+    check_sync_status: () => Promise<{
+      is_repo: boolean
+      has_remote: boolean
+      remote_url: string
+      branch: string
+      uncommitted: number
+      ahead: number
+      behind: number
+      last_commit: string
+      error: string
+    }>
     commit: (message: string) => Promise<{ success: boolean; message?: string }>
     push: () => Promise<{ success: boolean; error?: string }>
     pull: () => Promise<{ success: boolean; error?: string }>
