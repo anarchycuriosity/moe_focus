@@ -12,7 +12,8 @@ const route_to_page: Record<string, string> = {
 
 function path_to_url(path: string): string
 {
-  return `local:///${path.replace(/\\/g, '/')}`
+  // encodeURI keeps / unchanged but encodes Chinese and special chars
+  return `local:///${encodeURI(path.replace(/\\/g, '/'))}`
 }
 
 export function AnimeBackground(): JSX.Element

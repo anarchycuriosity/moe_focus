@@ -4,6 +4,7 @@
 
 import { app, BrowserWindow, shell, protocol, net } from 'electron'
 import { join } from 'path'
+import { pathToFileURL } from 'url'
 import { is } from '@electron-toolkit/utils'
 import { registerAllHandlers } from './ipc'
 import { DatabaseService } from './services/DatabaseService'
@@ -57,7 +58,8 @@ app.whenReady().then(async () =>
   protocol.handle('local', (request) =>
   {
     const raw = decodeURIComponent(request.url.replace('local://', '').replace(/^\/+/, ''))
-    return net.fetch(`file:///${raw}`)
+    // pathToFileURL handles non-ASCII chars (Chinese filenames etc.) correctly
+    return net.fetch(pathToFileURL(raw).href)
   })
 
   await DatabaseService.instance.initialize()

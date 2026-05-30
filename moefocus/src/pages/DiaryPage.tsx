@@ -186,7 +186,7 @@ export function DiaryPage(): JSX.Element
               <div
                 className={`${styles.image_frame} ${fading ? styles.fading : ''}`}
                 style={{
-                  backgroundImage: `url(local:///${current_pic.replace(/\\/g, '/')})`
+                  backgroundImage: `url(local:///${encodeURI(current_pic.replace(/\\/g, '/'))})`
                 }}
                 onClick={() =>
                 {
