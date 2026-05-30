@@ -460,12 +460,13 @@ function registerFileHandlers(): void
     const db = () => DatabaseService.instance
     db().run('UPDATE wallpapers SET is_active = 0')
 
-    const { copyFileSync } = await import('fs')
+    const { copyFileSync, existsSync, mkdirSync } = await import('fs')
     const { app } = await import('electron')
     const { join } = await import('path')
 
-    const dest_dir = join(app.getPath('userData'), 'wallpapers')
-    const { existsSync, mkdirSync } = await import('fs')
+    // Copy to project wallpapers/ directory (visible in file tree)
+    const project_dir = app.getAppPath()
+    const dest_dir = join(project_dir, 'wallpapers')
     if (!existsSync(dest_dir)) mkdirSync(dest_dir, { recursive: true })
 
     const file_name = file_path.split(/[\\/]/).pop() || 'wallpaper.png'

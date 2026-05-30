@@ -90,8 +90,8 @@ export function SettingsPage(): JSX.Element
     const path = await window.electronAPI.file.pick_image()
     if (path)
     {
-      await window.electronAPI.file.set_wallpaper(path)
-      await update('ui.activeWallpaper', path)
+      const dest_path = await window.electronAPI.file.set_wallpaper(path)
+      await update('ui.active_wallpaper', dest_path)
       set_save_msg('壁纸已更新!')
     }
   }
