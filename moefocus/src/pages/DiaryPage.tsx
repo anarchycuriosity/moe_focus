@@ -20,13 +20,21 @@ export function DiaryPage(): JSX.Element
 
   const [entries, set_entries] = useState<DiaryEntry[]>([])
   const [pictures, set_pictures] = useState<string[]>([])
-  const [img_idx, set_img_idx] = useState(0)
   const [has_today, set_has_today] = useState(false)
   const [rotate_enabled, set_rotate_enabled] = useState(true)
   const [rotate_interval, set_rotate_interval] = useState(8)
-  const [fading, set_fading] = useState(false)
-  const [display_idx, set_display_idx] = useState(0)
+  const [slot_a_idx, set_slot_a_idx] = useState(0)
+  const [slot_b_idx, set_slot_b_idx] = useState(1)
+  const [active_slot, set_active_slot] = useState<'a' | 'b'>('a')
+  const [sliding, set_sliding] = useState(false)
   const timer_ref = useRef<ReturnType<typeof setInterval> | null>(null)
+  const active_slot_ref = useRef(active_slot)
+  const slot_a_ref = useRef(slot_a_idx)
+  const slot_b_ref = useRef(slot_b_idx)
+
+  active_slot_ref.current = active_slot
+  slot_a_ref.current = slot_a_idx
+  slot_b_ref.current = slot_b_idx
 
   useEffect(() =>
   {
@@ -61,7 +69,7 @@ export function DiaryPage(): JSX.Element
     if (interval !== null) set_rotate_interval(parseInt(interval, 10) || 8)
   }
 
-  // Auto-rotation
+  // Auto-rotation with slide animation
   useEffect(() =>
   {
     if (timer_ref.current)
@@ -74,12 +82,27 @@ export function DiaryPage(): JSX.Element
 
     timer_ref.current = setInterval(() =>
     {
-      set_fading(true)
+      const current = active_slot_ref.current === 'a'
+        ? slot_a_ref.current
+        : slot_b_ref.current
+      const next = (current + 1) % pictures.length
+
+      if (active_slot_ref.current === 'a')
+      {
+        set_slot_b_idx(next)
+      }
+      else
+      {
+        set_slot_a_idx(next)
+      }
+
+      set_sliding(true)
+
       setTimeout(() =>
       {
-        set_display_idx((prev) => (prev + 1) % pictures.length)
-        set_fading(false)
-      }, 500)
+        set_active_slot((prev) => prev === 'a' ? 'b' : 'a')
+        set_sliding(false)
+      }, 600)
     }, rotate_interval * 1000)
 
     return () =>
@@ -123,7 +146,24 @@ export function DiaryPage(): JSX.Element
     }
   }
 
-  const current_pic = pictures[display_idx % pictures.length] || ''
+  const current_idx = active_slot === 'a' ? slot_a_idx : slot_b_idx
+  const show_slot_b = pictures.length > 1
+
+  const slot_a_class = [
+    styles.image_slot,
+    sliding ? styles.animating : '',
+    active_slot === 'a'
+      ? (sliding ? styles.exit_left : styles.current)
+      : (sliding ? styles.enter_right : styles.standby)
+  ].filter(Boolean).join(' ')
+
+  const slot_b_class = [
+    styles.image_slot,
+    sliding ? styles.animating : '',
+    active_slot === 'b'
+      ? (sliding ? styles.exit_left : styles.current)
+      : (sliding ? styles.enter_right : styles.standby)
+  ].filter(Boolean).join(' ')
 
   return (
     <div className={styles.page}>
@@ -181,25 +221,36 @@ export function DiaryPage(): JSX.Element
       {/* Main area: rotating photo frame */}
       <div className={styles.main}>
         <MoeCard className={styles.frame_card}>
-          {current_pic ? (
+          {pictures.length > 0 ? (
             <div className={styles.frame_wrapper}>
               <div
-                className={`${styles.image_frame} ${fading ? styles.fading : ''}`}
-                style={{
-                  backgroundImage: `url(local:///${encodeURI(current_pic.replace(/\\/g, '/'))})`
-                }}
+                className={styles.image_frame}
                 onClick={() =>
                 {
                   if (target_date) handle_open(target_date)
                 }}
                 title="点击用 Typora 打开当天日记"
               >
+                <div
+                  className={slot_a_class}
+                  style={{
+                    backgroundImage: `url(local:///${encodeURI((pictures[slot_a_idx] || '').replace(/\\/g, '/'))})`
+                  }}
+                />
+                {show_slot_b && (
+                  <div
+                    className={slot_b_class}
+                    style={{
+                      backgroundImage: `url(local:///${encodeURI((pictures[slot_b_idx] || '').replace(/\\/g, '/'))})`
+                    }}
+                  />
+                )}
                 <div className={styles.frame_overlay}>
                   <span className={styles.frame_date}>{target_date}</span>
                   <div className={styles.frame_info}>
                     {pictures.length > 1 && (
                       <span className={styles.frame_counter}>
-                        {display_idx + 1} / {pictures.length}
+                        {current_idx + 1} / {pictures.length}
                         {rotate_enabled && ` · ${rotate_interval}s`}
                       </span>
                     )}

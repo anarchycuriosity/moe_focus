@@ -170,15 +170,40 @@
   cursor: pointer;
   position: relative;
   overflow: hidden;
-  transition: opacity 0.5s ease;
-}
-
-.image_frame.fading {
-  opacity: 0.3;
 }
 
 .image_frame:hover {
   box-shadow: 0 8px 30px var(--moe-shadow);
+}
+
+/* Slide animation slots */
+.image_slot {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--moe-radius);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.image_slot.animating {
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.image_slot.current {
+  transform: translateX(0);
+}
+
+.image_slot.standby {
+  transform: translateX(100%);
+}
+
+.image_slot.exit_left {
+  transform: translateX(-100%);
+}
+
+.image_slot.enter_right {
+  transform: translateX(0);
 }
 
 .frame_overlay {

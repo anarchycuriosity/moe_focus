@@ -105,6 +105,14 @@
 %APPDATA%/moefocus/moefocus.db (wallpapers 表)
 ```
 
+### 日记相框图片
+
+日记页支持从 `moefocus/diary-pictures/` 目录自动加载图片并轮播展示。
+
+- 图片文件名**必须使用英文**命名（如 `photo.png`），中文文件名会导致路径识别失败
+- 轮播间隔和开关可在「设置 → 通用 → 日记相框」中调整
+- 支持格式：jpg / png / gif / webp / bmp
+
 ## 双 PC 数据同步
 
 通过 GitHub 私有仓库实现两台电脑间的数据同步。
