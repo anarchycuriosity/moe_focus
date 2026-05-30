@@ -2,7 +2,7 @@
 // 应用入口 — BrowserWindow 创建、生命周期管理
 // Phase 5: 添加 scheduler_service 自动任务调度
 
-import { app, BrowserWindow, shell, protocol } from 'electron'
+import { app, BrowserWindow, shell, protocol, net } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { registerAllHandlers } from './ipc'
@@ -54,11 +54,10 @@ function create_window(): void
 app.whenReady().then(async () =>
 {
   // Register custom protocol for local file access (bypasses file:// CSP block)
-  protocol.registerFileProtocol('local', (request, callback) =>
+  protocol.handle('local', (request) =>
   {
-    // Handle both 'local:///C:/...' and 'local://C:/...' formats
     const raw = decodeURIComponent(request.url.replace('local://', '').replace(/^\/+/, ''))
-    callback({ path: raw })
+    return net.fetch(`file:///${raw}`)
   })
 
   await DatabaseService.instance.initialize()

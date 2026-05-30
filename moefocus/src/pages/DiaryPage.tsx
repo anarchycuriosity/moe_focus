@@ -40,7 +40,12 @@ export function DiaryPage(): JSX.Element
 
   const load_wallpapers = async () =>
   {
-    const path = await window.electronAPI.settings.get('ui.active_wallpaper')
+    // Try wallpapers table first, then settings key
+    let path = await window.electronAPI.file.get_active_wallpaper()
+    if (!path)
+    {
+      path = await window.electronAPI.settings.get('ui.active_wallpaper')
+    }
     if (path)
     {
       set_wallpapers([path])
@@ -174,8 +179,8 @@ export function DiaryPage(): JSX.Element
           ) : (
             <div className={styles.no_image}>
               <span className={styles.no_image_icon}>🖼️</span>
-              <p>在设置中选择壁纸图片</p>
-              <p className={styles.no_image_hint}>壁纸将在此处展示</p>
+              <p>在「设置 → 通用 → 自定义壁纸」中选择图片</p>
+              <p className={styles.no_image_hint}>支持 jpg / png / gif / webp，选中后壁纸将在此处和全局背景中展示</p>
             </div>
           )}
         </MoeCard>

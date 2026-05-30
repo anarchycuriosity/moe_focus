@@ -16,7 +16,7 @@ export function FocusTimer({ expanded = false }: Props): JSX.Element
     phase, remaining_seconds, total_seconds, subject
   } = useFocusStore()
 
-  const { start, pause, resume, stop, skip_to_rest } = useFocusTimer()
+  const { start, pause, resume, stop } = useFocusTimer()
 
   const timer_size = expanded ? 260 : 180
 
@@ -43,7 +43,6 @@ export function FocusTimer({ expanded = false }: Props): JSX.Element
         on_pause={pause}
         on_resume={resume}
         on_stop={stop}
-        on_skip={skip_to_rest}
       />
     </MoeCard>
   )

@@ -66,7 +66,11 @@ const electron_api = {
     get_weekly: (week_start: string) => ipcRenderer.invoke('stats:getWeekly', week_start),
     get_monthly: (month: string) => ipcRenderer.invoke('stats:getMonthly', month),
     get_focus_items: (start_date: string, end_date: string) =>
-      ipcRenderer.invoke('stats:getFocusItems', start_date, end_date)
+      ipcRenderer.invoke('stats:getFocusItems', start_date, end_date),
+    get_weekly_breakdown: (week_start: string) =>
+      ipcRenderer.invoke('stats:getWeeklyBreakdown', week_start),
+    get_monthly_breakdown: (month: string) =>
+      ipcRenderer.invoke('stats:getMonthlyBreakdown', month)
   },
   settings:
   {
@@ -101,6 +105,7 @@ const electron_api = {
     open_in_typora: (file_path: string) => ipcRenderer.invoke('file:openInTypora', file_path),
     pick_image: () => ipcRenderer.invoke('file:pickImage'),
     set_wallpaper: (file_path: string) => ipcRenderer.invoke('file:setWallpaper', file_path),
+    get_active_wallpaper: () => ipcRenderer.invoke('file:getActiveWallpaper'),
     open_wallpapers_folder: () => ipcRenderer.invoke('file:openWallpapersFolder'),
     on_file_drop: (cb: (file_path: string) => void) =>
     {

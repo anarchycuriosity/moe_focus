@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useFocusStore } from '../../store/useFocusStore'
 import { MoeCard } from '../common/MoeCard'
 import { MoeInput } from '../common/MoeInput'
@@ -12,6 +13,22 @@ export function SessionConfig(): JSX.Element
     set_config,
     set_subject
   } = useFocusStore()
+
+  useEffect(() =>
+  {
+    async function load_defaults()
+    {
+      const focus_str = await window.electronAPI.settings.get('focus.defaultDuration')
+      const rest_str = await window.electronAPI.settings.get('focus.defaultRestDuration')
+      const focus_val = focus_str ? parseInt(focus_str, 10) : 25
+      const rest_val = rest_str ? parseInt(rest_str, 10) : 5
+      if (focus_val > 0 && rest_val >= 0)
+      {
+        set_config(focus_val, rest_val)
+      }
+    }
+    load_defaults()
+  }, [])
 
   return (
     <MoeCard className={styles.config}>

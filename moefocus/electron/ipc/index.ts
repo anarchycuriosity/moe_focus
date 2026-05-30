@@ -222,7 +222,7 @@ function registerFocusHandlers(): void
   ipcMain.handle('focus:complete', (_event, id, actual_sec) =>
   {
     db().run(
-      "UPDATE focus_sessions SET status != 'running' AND status != 'paused', actual_duration_sec = ?, ended_at = datetime('now') WHERE id = ?",
+      "UPDATE focus_sessions SET status = 'completed', actual_duration_sec = ?, ended_at = datetime('now') WHERE id = ?",
       [actual_sec, id]
     )
     return { success: true }
@@ -348,10 +348,46 @@ function registerStatsHandlers(): void
        FROM focus_sessions fs
        LEFT JOIN todo_items ti ON fs.todo_id = ti.id
        LEFT JOIN tasks t ON ti.task_id = t.id
-       WHERE fs.date BETWEEN ? AND ? AND fs.status != 'running' AND status != 'paused'
+       WHERE fs.date BETWEEN ? AND ? AND fs.status NOT IN ('running', 'paused')
        GROUP BY label
        ORDER BY total_seconds DESC`,
       [start_date, end_date]
+    )
+  })
+
+  ipcMain.handle('stats:getWeeklyBreakdown', (_event, week_start) =>
+  {
+    return db().all(
+      `SELECT fs.date,
+              COALESCE(t.title, fs.subject) as subject,
+              COALESCE(t.color, '#FFB7C5') as color,
+              SUM(fs.actual_duration_sec) as total_seconds
+       FROM focus_sessions fs
+       LEFT JOIN todo_items ti ON fs.todo_id = ti.id
+       LEFT JOIN tasks t ON ti.task_id = t.id
+       WHERE fs.date >= ? AND fs.date < date(?, '+7 days')
+         AND fs.status NOT IN ('running', 'paused')
+       GROUP BY fs.date, subject
+       ORDER BY fs.date, total_seconds DESC`,
+      [week_start, week_start]
+    )
+  })
+
+  ipcMain.handle('stats:getMonthlyBreakdown', (_event, month) =>
+  {
+    return db().all(
+      `SELECT fs.date,
+              COALESCE(t.title, fs.subject) as subject,
+              COALESCE(t.color, '#FFB7C5') as color,
+              SUM(fs.actual_duration_sec) as total_seconds
+       FROM focus_sessions fs
+       LEFT JOIN todo_items ti ON fs.todo_id = ti.id
+       LEFT JOIN tasks t ON ti.task_id = t.id
+       WHERE strftime('%Y-%m', fs.date) = ?
+         AND fs.status NOT IN ('running', 'paused')
+       GROUP BY fs.date, subject
+       ORDER BY fs.date, total_seconds DESC`,
+      [month]
     )
   })
 }
@@ -470,6 +506,12 @@ function registerFileHandlers(): void
     )
 
     return file_path
+  })
+
+  ipcMain.handle('file:getActiveWallpaper', () =>
+  {
+    const row = db().get('SELECT file_path FROM wallpapers WHERE is_active = 1 ORDER BY added_at DESC LIMIT 1')
+    return row ? (row as { file_path: string }).file_path : null
   })
 
   ipcMain.handle('file:openWallpapersFolder', async () =>

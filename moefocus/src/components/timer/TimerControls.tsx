@@ -8,7 +8,6 @@ interface Props
   on_pause: () => void
   on_resume: () => void
   on_stop: () => void
-  on_skip: () => void
 }
 
 export function TimerControls({
@@ -32,9 +31,6 @@ export function TimerControls({
         <>
           <MoeButton variant="secondary" size="md" onClick={on_pause}>
             暂停
-          </MoeButton>
-          <MoeButton variant="ghost" size="md" onClick={on_skip}>
-            跳过
           </MoeButton>
           <MoeButton
             variant="ghost"

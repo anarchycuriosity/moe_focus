@@ -98,7 +98,7 @@ export function CircularProgress({
             fontWeight: 500
           }}
         >
-          {phase === 'focus' ? '专注中' : phase === 'rest' ? '休息中' : phase === 'paused' ? '已暂停' : '准备'}
+          {phase === 'focus' ? '专注中' : phase === 'rest' ? '休息中' : phase === 'paused' ? '已暂停' : ''}
         </span>
       </div>
     </div>

@@ -39,24 +39,11 @@ export function useFocusTimer()
     {
       if (s.session_id)
       {
-        const actual = s.focus_duration_min * 60 - s.remaining_seconds
-        await window.electronAPI.focus.complete(s.session_id, actual || s.focus_duration_min * 60)
+        const actual = s.total_seconds - s.remaining_seconds
+        await window.electronAPI.focus.complete(s.session_id, actual || s.total_seconds)
       }
-      if (s.rest_duration_min > 0)
-      {
-        s.switch_to_rest()
-        interval_ref.current = setInterval(tick, 1000)
-      }
-      else
-      {
-        s.end_session()
-        new Notification('专注完成！', { body: s.subject || '未命名' })
-      }
-    }
-    else if (s.phase === 'rest')
-    {
       s.end_session()
-      new Notification('休息结束！')
+      new Notification('专注完成！', { body: s.subject || '未命名' })
     }
   }
 

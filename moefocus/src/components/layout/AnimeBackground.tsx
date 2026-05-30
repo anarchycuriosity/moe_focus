@@ -1,32 +1,44 @@
 import { useState, useEffect } from 'react'
 import styles from './AnimeBackground.module.css'
 
+function path_to_url(path: string): string
+{
+  const normalized = path.replace(/\\/g, '/')
+  // Windows absolute path like C:/Users/... needs three slashes
+  return `local:///${normalized}`
+}
+
 export function AnimeBackground(): JSX.Element
 {
   const [wallpaper_url, set_wallpaper_url] = useState<string>('')
 
   useEffect(() =>
   {
-    console.log('[BG] mounting, loading wallpaper...')
-    window.electronAPI.settings.get('ui.active_wallpaper').then((path) =>
+    async function load_wallpaper()
     {
-      console.log('[BG] loaded wallpaper path from settings:', path)
-      if (path)
+      // Try wallpapers table first (direct DB query for active wallpaper)
+      const db_path = await window.electronAPI.file.get_active_wallpaper()
+      if (db_path)
       {
-        const url = `local:///${String(path).replace(/\\/g, '/')}`
-        console.log('[BG] setting url:', url)
-        set_wallpaper_url(url)
+        set_wallpaper_url(path_to_url(db_path))
+        return
       }
-    })
+
+      // Fallback to settings key
+      const settings_path = await window.electronAPI.settings.get('ui.active_wallpaper')
+      if (settings_path)
+      {
+        set_wallpaper_url(path_to_url(settings_path))
+      }
+    }
+
+    load_wallpaper()
 
     const cleanup = window.electronAPI.settings.on_changed((data) =>
     {
-      console.log('[BG] settings changed:', data)
       if (data.key === 'ui.active_wallpaper' && data.value)
       {
-        const url = `local:///${String(data.value).replace(/\\/g, '/')}`
-        console.log('[BG] updating wallpaper url:', url)
-        set_wallpaper_url(url)
+        set_wallpaper_url(path_to_url(String(data.value)))
       }
     })
 
