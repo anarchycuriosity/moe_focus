@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 import { MoeCard } from '../components/common/MoeCard'
 import { MoeInput } from '../components/common/MoeInput'
 import { MoeButton } from '../components/common/MoeButton'
+import { apply_theme } from '../styles/theme'
 import styles from './SettingsPage.module.css'
 
 interface SettingsState
@@ -22,6 +23,7 @@ interface SettingsState
   'github.remoteUrl': string
   'github.branch': string
   'ui.theme': string
+  'ui.darkMode': string
   'ui.chartType': string
   'ui.photoFrameEnabled': string
   'typora.path': string
@@ -180,10 +182,29 @@ export function SettingsPage(): JSX.Element
           <div className={styles.section}>
             <h3>外观与界面</h3>
             <div className={styles.field}>
-              <label>主题</label>
+              <label>暗色模式</label>
+              <select
+                value={settings['ui.darkMode'] || 'true'}
+                onChange={(e) =>
+                {
+                  update('ui.darkMode', e.target.value)
+                  apply_theme(e.target.value !== 'false', settings['ui.theme'] || 'sakura')
+                }}
+                className={styles.select}
+              >
+                <option value="true">🌙 暗色</option>
+                <option value="false">☀️ 亮色</option>
+              </select>
+            </div>
+            <div className={styles.field}>
+              <label>亮色主题</label>
               <select
                 value={settings['ui.theme'] || 'sakura'}
-                onChange={(e) => update('ui.theme', e.target.value)}
+                onChange={(e) =>
+                {
+                  update('ui.theme', e.target.value)
+                  apply_theme(settings['ui.darkMode'] !== 'false', e.target.value)
+                }}
                 className={styles.select}
               >
                 <option value="sakura">🌸 樱花粉</option>

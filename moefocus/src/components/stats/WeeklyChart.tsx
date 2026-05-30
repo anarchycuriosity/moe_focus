@@ -89,14 +89,14 @@ export function WeeklyChart({ week_start, chart_type }: Props): JSX.Element
     return (
       <ResponsiveContainer width="100%" height={350}>
         <BarChart data={pie_data} layout="vertical">
-          <CartesianGrid strokeDasharray="3 3" stroke="#F0E0E8" />
-          <XAxis type="number" tick={{ fill: '#8B7B89', fontSize: 12 }} unit="分钟" />
-          <YAxis type="category" dataKey="name" tick={{ fill: '#8B7B89', fontSize: 13 }} width={100} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--moe-border)" />
+          <XAxis type="number" tick={{ fill: 'var(--moe-text-light)', fontSize: 12 }} unit="分钟" />
+          <YAxis type="category" dataKey="name" tick={{ fill: 'var(--moe-text-light)', fontSize: 13 }} width={100} />
           <Tooltip
             contentStyle={{
               borderRadius: '12px',
-              border: '1px solid #F0E0E8',
-              background: 'rgba(255,255,255,0.95)'
+              border: '1px solid var(--moe-border)',
+              background: 'var(--moe-glass-hover)'
             }}
           />
           <Bar dataKey="分钟" radius={[0, 8, 8, 0]} maxBarSize={30}>
@@ -133,14 +133,14 @@ export function WeeklyChart({ week_start, chart_type }: Props): JSX.Element
   return (
     <ResponsiveContainer width="100%" height={350}>
       <BarChart data={chart_data}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#F0E0E8" />
-        <XAxis dataKey="name" tick={{ fill: '#8B7B89', fontSize: 13 }} />
-        <YAxis tick={{ fill: '#8B7B89', fontSize: 12 }} unit="分钟" />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--moe-border)" />
+        <XAxis dataKey="name" tick={{ fill: 'var(--moe-text-light)', fontSize: 13 }} />
+        <YAxis tick={{ fill: 'var(--moe-text-light)', fontSize: 12 }} unit="分钟" />
         <Tooltip
           contentStyle={{
             borderRadius: '12px',
-            border: '1px solid #F0E0E8',
-            background: 'rgba(255,255,255,0.95)'
+            border: '1px solid var(--moe-border)',
+            background: 'var(--moe-glass-hover)'
           }}
         />
         <Legend />

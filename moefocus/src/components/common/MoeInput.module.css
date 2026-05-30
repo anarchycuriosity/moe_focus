@@ -16,7 +16,7 @@
   padding: 8px 14px;
   border: 1.5px solid var(--moe-border);
   border-radius: var(--moe-radius-sm);
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--moe-glass-hover);
   color: var(--moe-text);
   transition: all var(--moe-transition);
   outline: none;
@@ -30,7 +30,7 @@
 .input:focus {
   border-color: var(--moe-pink);
   box-shadow: 0 0 0 3px rgba(255, 183, 197, 0.15);
-  background: white;
+  background: var(--moe-surface);
 }
 
 .input:hover:not(:focus) {

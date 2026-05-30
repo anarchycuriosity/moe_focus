@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@300;400;500;700;800&display=swap');
 
+/* ===== Dark theme (default, :root without data-theme) ===== */
 :root {
   --moe-pink: #FFB7C5;
   --moe-pink-dark: #E892A3;
@@ -7,17 +8,94 @@
   --moe-lavender-dark: #A98CC4;
   --moe-mint: #B5EAD7;
   --moe-mint-dark: #8ECDB5;
-  --moe-sky: #C7CEEA;
-  --moe-cream: #FFF5EE;
-  --moe-text: #5B4B59;
-  --moe-text-light: #8B7B89;
-  --moe-border: #F0E0E8;
-  --moe-shadow: rgba(255, 183, 197, 0.25);
+  --moe-sky: #7BA8D4;
+  --moe-bg: #1A1A2E;
+  --moe-surface: #252540;
+  --moe-text: #E8E4F0;
+  --moe-text-light: #A09BB0;
+  --moe-border: #3A3A55;
+  --moe-shadow: rgba(0, 0, 0, 0.4);
+  --moe-glass-bg: rgba(30, 30, 56, 0.65);
+  --moe-glass-sidebar: rgba(25, 25, 48, 0.75);
+  --moe-glass-border: rgba(255, 255, 255, 0.06);
+  --moe-glass-hover: rgba(60, 60, 100, 0.8);
+  --moe-gradient: linear-gradient(135deg, #1A1A2E 0%, rgba(255,183,197,0.06) 25%, rgba(201,169,220,0.06) 50%, rgba(123,168,212,0.06) 75%, #1A1A2E 100%);
   --moe-radius: 16px;
   --moe-radius-sm: 10px;
   --moe-radius-xs: 6px;
   --moe-font: 'M PLUS Rounded 1c', 'Microsoft YaHei', sans-serif;
   --moe-transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Legacy alias — keep for any code referencing --moe-cream */
+:root, [data-theme] {
+  --moe-cream: var(--moe-bg);
+}
+
+/* ===== Light theme: Sakura ===== */
+[data-theme="sakura"] {
+  --moe-pink: #FFB7C5;
+  --moe-pink-dark: #E892A3;
+  --moe-lavender: #C9A9DC;
+  --moe-lavender-dark: #A98CC4;
+  --moe-mint: #B5EAD7;
+  --moe-mint-dark: #8ECDB5;
+  --moe-sky: #C7CEEA;
+  --moe-bg: #FFF5EE;
+  --moe-surface: #FFFFFF;
+  --moe-text: #3A2E36;
+  --moe-text-light: #6B5B69;
+  --moe-border: #F0E0E8;
+  --moe-shadow: rgba(255, 183, 197, 0.25);
+  --moe-glass-bg: rgba(255, 255, 255, 0.55);
+  --moe-glass-sidebar: rgba(255, 255, 255, 0.45);
+  --moe-glass-border: rgba(255, 255, 255, 0.45);
+  --moe-glass-hover: rgba(255, 255, 255, 0.65);
+  --moe-gradient: linear-gradient(135deg, #FFF5EE 0%, #FFE8F0 25%, #F0E6FF 50%, #E8F4FD 75%, #FFF5EE 100%);
+}
+
+/* ===== Light theme: Lavender ===== */
+[data-theme="lavender"] {
+  --moe-pink: #C9A9DC;
+  --moe-pink-dark: #A98CC4;
+  --moe-lavender: #C9A9DC;
+  --moe-lavender-dark: #A98CC4;
+  --moe-mint: #C7CEEA;
+  --moe-mint-dark: #A8B8D4;
+  --moe-sky: #C7CEEA;
+  --moe-bg: #F5F0FF;
+  --moe-surface: #FFFFFF;
+  --moe-text: #3A334D;
+  --moe-text-light: #6B6380;
+  --moe-border: #E8E0F0;
+  --moe-shadow: rgba(201, 169, 220, 0.25);
+  --moe-glass-bg: rgba(255, 255, 255, 0.55);
+  --moe-glass-sidebar: rgba(255, 255, 255, 0.45);
+  --moe-glass-border: rgba(255, 255, 255, 0.45);
+  --moe-glass-hover: rgba(255, 255, 255, 0.65);
+  --moe-gradient: linear-gradient(135deg, #F5F0FF 0%, #EDE0FF 25%, #E0E8FF 50%, #E8F0FD 75%, #F5F0FF 100%);
+}
+
+/* ===== Light theme: Mint ===== */
+[data-theme="mint"] {
+  --moe-pink: #B5EAD7;
+  --moe-pink-dark: #8ECDB5;
+  --moe-lavender: #B5EAD7;
+  --moe-lavender-dark: #8ECDB5;
+  --moe-mint: #B5EAD7;
+  --moe-mint-dark: #8ECDB5;
+  --moe-sky: #C7CEEA;
+  --moe-bg: #F5FFFA;
+  --moe-surface: #FFFFFF;
+  --moe-text: #2E3D38;
+  --moe-text-light: #5B6B65;
+  --moe-border: #E0F0E8;
+  --moe-shadow: rgba(181, 234, 215, 0.25);
+  --moe-glass-bg: rgba(255, 255, 255, 0.55);
+  --moe-glass-sidebar: rgba(255, 255, 255, 0.45);
+  --moe-glass-border: rgba(255, 255, 255, 0.45);
+  --moe-glass-hover: rgba(255, 255, 255, 0.65);
+  --moe-gradient: linear-gradient(135deg, #F5FFFA 0%, #E8FFF5 25%, #E0F0F0 50%, #E8F8F5 75%, #F5FFFA 100%);
 }
 
 * {
@@ -35,7 +113,7 @@ html, body, #root {
 body {
   font-family: var(--moe-font);
   color: var(--moe-text);
-  background-color: var(--moe-cream);
+  background-color: var(--moe-bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   user-select: none;

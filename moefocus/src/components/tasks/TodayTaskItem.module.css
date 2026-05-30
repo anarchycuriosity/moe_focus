@@ -3,10 +3,10 @@
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--moe-glass-bg);
   backdrop-filter: blur(10px) saturate(150%);
   -webkit-backdrop-filter: blur(10px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid var(--moe-glass-border);
   border-left: 3px solid var(--moe-pink);
   border-radius: var(--moe-radius-sm);
   transition: all var(--moe-transition);
@@ -14,7 +14,7 @@
 
 .item:hover {
   box-shadow: 0 4px 20px rgba(180, 160, 180, 0.22);
-  background: rgba(255, 255, 255, 0.65);
+  background: var(--moe-glass-hover);
 }
 
 .dragging {

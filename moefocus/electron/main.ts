@@ -28,7 +28,7 @@ function create_window(): void
       contextIsolation: true,
       nodeIntegration: false
     },
-    backgroundColor: '#FFF5EE',
+    backgroundColor: '#1A1A2E',
     show: false
   })
 

@@ -84,6 +84,7 @@ INSERT OR IGNORE INTO settings (key, value) VALUES ('email.reminderEnabled', 'tr
 INSERT OR IGNORE INTO settings (key, value) VALUES ('github.remoteUrl', '');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('github.branch', 'main');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('ui.theme', 'sakura');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('ui.darkMode', 'true');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('ui.chartType', 'bar');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('ui.photoFrameEnabled', 'true');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('typora.path', '');

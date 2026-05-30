@@ -22,7 +22,7 @@
 .frame_inner {
   width: 80px;
   height: 80px;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--moe-glass-hover);
   border-radius: 8px;
   display: flex;
   align-items: center;
