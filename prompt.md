@@ -1,10 +1,10 @@
 我们正在做一个叫MoeFocus的日记+专注时间统计的专注钟，类似windows的专注钟但有一些新功能集成。我们现在主要先做moefocus文件夹下的桌面端部分，moefocus-mobile文件夹下的移动端先不管。修复记录的内容已经被修复了，现在部分模块已经比较稳定了，但有以下问题。你对以下的每点内容都要分别提交，而不是改完所有才提交。**每次对话结束前必须按下方格式在本文末尾追加修复记录review，方便下次开新终端循环。**
 
-1：日记大图轮换的效果不佳，我希望改成滑动更新的那种动画效果。readme中补充提示图片应该命名为英文而不是中文否则识别不出。
+1：重大bug：切换模块后计时会重置
 
-2：每次都要到仓库执行那行命令有些太繁琐了，希望包装成点击某个文件就可以启动的形式。
+2：暗色模式下设置部分的按钮字体不是很显眼。
 
-3：readme里面不要把我的私人仓库地址暴露出去。
+3：在readme中明确用户应该如何使用本仓库，同时我想知道数据是怎么做到同步的，如果我想多台设备之间同步就必须通过一个额外的仓库来存数据吗.
 
 
 
@@ -99,4 +99,36 @@
 | 同步/隐私 | `electron/services/GitService.ts`, `electron/ipc/index.ts`, `electron/preload.ts`, `electron/main.ts`, `schema.sql` |
 | 设置页 | `src/pages/SettingsPage.tsx` |
 | 类型定义 | `src/types/electron.d.ts` |
-| 文档 | `README.md`, `prompt.md`
+| 文档 | `README.md`, `prompt.md` |
+
+---
+## 2026-05-31 第三轮修复记录 (claude: Kurisu)
+
+### 已完成的三个问题 (3 commits)
+
+**1. 修复切换模块后计时重置** (`841f79e`)
+- **根因**: `SessionConfig` 每次挂载调用 `set_config()`，后者无条件将 `remaining_seconds` 重置为满值。切换侧边栏页面导致组件重新挂载，计时被重置。
+- **修复**: 
+  - `useFocusStore.set_config` 仅更新 `focus_duration_min` / `rest_duration_min`，不再触碰 `remaining_seconds`（由 `start_session` 设置）
+  - `SessionConfig` 在 `useEffect` 中检测当前 phase，活跃状态 (`focus`/`rest`/`paused`) 下跳过默认值加载
+
+**2. 暗色模式下设置页按钮字体提高对比度** (`dc74b02`)
+- **根因**: `ghost` 按钮用 `--moe-text-light` (`#A09BB0`)，暗色毛玻璃背景上对比度极低；`secondary` 按钮用 `--moe-pink-dark` 同样偏暗
+- **修复**:
+  - 暗色模式（`:root` 无 `data-theme`）：`ghost` 用 `var(--moe-text)` (`#E8E4F0`)，`secondary` 用 `var(--moe-pink)` (`#FFB7C5`)
+  - 亮色模式（`[data-theme]`）：`secondary` 覆盖回 `var(--moe-pink-dark)` 避免在白底上过淡
+  - 设置页 `tab` 按钮从 `--moe-text-light` 改为 `--moe-text` + `opacity: 0.7`，激活态用 `--moe-pink`
+
+**3. README 快速开始 + 同步机制详解** (`9531804`)
+- 新增「快速开始」章节：双击 `start-dev.bat` 一键启动，或命令行 `npm install && npm run dev`
+- 新增「数据同步需要额外仓库吗？」明确回答：**是**，需要独立的 GitHub 私有仓库
+- 双仓库架构图：源码仓库 vs 数据仓库，解释为什么分离
+- 配置步骤细化：从创建空仓库到双机同步的完整流程
+- 数据流向图：PC① ↔ GitHub 私有仓库 ↔ PC②
+
+### 关键文件变更索引
+| 模块 | 文件 |
+|------|------|
+| 计时器 | `src/store/useFocusStore.ts`, `src/components/timer/SessionConfig.tsx` |
+| 按钮/UI | `src/components/common/MoeButton.module.css`, `src/pages/SettingsPage.module.css` |
+| 文档 | `README.md` |
