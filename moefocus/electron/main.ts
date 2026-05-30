@@ -56,8 +56,9 @@ app.whenReady().then(async () =>
   // Register custom protocol for local file access (bypasses file:// CSP block)
   protocol.registerFileProtocol('local', (request, callback) =>
   {
-    const file_path = decodeURIComponent(request.url.replace('local://', ''))
-    callback({ path: file_path })
+    // Handle both 'local:///C:/...' and 'local://C:/...' formats
+    const raw = decodeURIComponent(request.url.replace('local://', '').replace(/^\/+/, ''))
+    callback({ path: raw })
   })
 
   await DatabaseService.instance.initialize()

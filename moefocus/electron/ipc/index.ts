@@ -208,7 +208,11 @@ function registerFocusHandlers(): void
        VALUES (?, ?, ?, ?, ?, 'running')`,
       [session.todo_id || null, session.subject, session.planned_duration_min, session.rest_duration_sec || 0, session.date]
     )
-    return db().get('SELECT * FROM focus_sessions WHERE id = ?', [last_insert_id(db)])
+    // Use MAX(id) instead of last_insert_rowid for sql.js compat
+    const id_row = db().get('SELECT MAX(id) as new_id FROM focus_sessions')
+    const new_id = (id_row as { new_id: number } | undefined)?.new_id ?? 0
+    if (new_id === 0) return null
+    return db().get('SELECT * FROM focus_sessions WHERE id = ?', [new_id])
   })
 
   ipcMain.handle('focus:pause', (_event, id) =>

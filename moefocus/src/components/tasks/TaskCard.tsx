@@ -26,10 +26,9 @@ export function TaskCard({ task, on_delete }: Props): JSX.Element
       ref={setNodeRef}
       className={`${styles.card} ${isDragging ? styles.dragging : ''}`}
       style={style}
+      {...listeners}
+      {...attributes}
     >
-      <span className={styles.drag_handle} {...listeners} {...attributes}>
-        ⠿
-      </span>
       <span className={styles.title}>{task.title}</span>
       <button
         className={styles.delete_btn}

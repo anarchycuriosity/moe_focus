@@ -155,7 +155,7 @@ export function DiaryPage(): JSX.Element
           {current_wallpaper ? (
             <div
               className={styles.image_frame}
-              style={{ backgroundImage: `url(local://${current_wallpaper.replace(/\\/g, '/')})` }}
+              style={{ backgroundImage: `url(local:///${current_wallpaper.replace(/\\/g, '/')})` }}
               onClick={() =>
               {
                 if (target_date) handle_open(target_date)

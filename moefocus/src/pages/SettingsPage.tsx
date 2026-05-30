@@ -87,12 +87,20 @@ export function SettingsPage(): JSX.Element
 
   const handle_pick_wallpaper = async () =>
   {
+    console.log('[Settings] pick_wallpaper clicked')
     const path = await window.electronAPI.file.pick_image()
+    console.log('[Settings] pick_image result:', path)
     if (path)
     {
       const dest_path = await window.electronAPI.file.set_wallpaper(path)
+      console.log('[Settings] set_wallpaper returned:', dest_path)
       await update('ui.active_wallpaper', dest_path)
+      console.log('[Settings] settings updated with:', dest_path)
       set_save_msg('壁纸已更新!')
+    }
+    else
+    {
+      console.log('[Settings] no image selected (cancelled or error)')
     }
   }
 
