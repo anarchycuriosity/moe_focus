@@ -2,7 +2,6 @@ import { HashRouter } from 'react-router-dom'
 import { MainLayout } from './components/layout/MainLayout'
 import { AnimeBackground } from './components/layout/AnimeBackground'
 import { SakuraParticles } from './components/widgets/SakuraParticles'
-import { PhotoFrame } from './components/widgets/PhotoFrame'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { AppRoutes } from './routes'
 
@@ -16,7 +15,6 @@ export function App(): JSX.Element
           <AppRoutes />
         </MainLayout>
         <SakuraParticles />
-        <PhotoFrame enabled />
       </ErrorBoundary>
     </HashRouter>
   )

@@ -139,6 +139,7 @@ interface ElectronAPI
     get_by_date: (date: string) => Promise<DiaryEntry | null>
     save_reflection: (date: string, text: string) => Promise<{ success: boolean }>
     list_all: () => Promise<Array<{ date: string; file_path: string | null; mood: string | null }>>
+    delete_entry: (date: string) => Promise<{ success: boolean }>
     on_auto_generated: (cb: (date: string) => void) => () => void
   }
   stats: {

@@ -53,6 +53,7 @@ const electron_api = {
     get_by_date: (date: string) => ipcRenderer.invoke('diary:getByDate', date),
     save_reflection: (date: string, text: string) => ipcRenderer.invoke('diary:saveReflection', date, text),
     list_all: () => ipcRenderer.invoke('diary:listAll'),
+    delete_entry: (date: string) => ipcRenderer.invoke('diary:deleteEntry', date),
     on_auto_generated: (cb: (date: string) => void) =>
     {
       const listener = (_event: Electron.IpcRendererEvent, date: string) => cb(date)

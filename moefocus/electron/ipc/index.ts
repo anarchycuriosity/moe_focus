@@ -302,6 +302,12 @@ function registerDiaryHandlers(): void
     const result = DiaryService.generate(date)
     return { success: true, date, file_path: result.file_path, content: result.content }
   })
+
+  ipcMain.handle('diary:deleteEntry', (_event, date) =>
+  {
+    db().run('DELETE FROM diary_entries WHERE date = ?', [date])
+    return { success: true }
+  })
 }
 
 // ===== Phase 6: 统计聚合 — 周/月/事项 =====
@@ -457,27 +463,16 @@ function registerFileHandlers(): void
 
   ipcMain.handle('file:setWallpaper', async (_event, file_path) =>
   {
+    // Just store the path — no copying, use local file directly
     const db = () => DatabaseService.instance
     db().run('UPDATE wallpapers SET is_active = 0')
 
-    const { copyFileSync, existsSync, mkdirSync } = await import('fs')
-    const { app } = await import('electron')
-    const { join } = await import('path')
-
-    // Copy to project wallpapers/ directory (visible in file tree)
-    const project_dir = app.getAppPath()
-    const dest_dir = join(project_dir, 'wallpapers')
-    if (!existsSync(dest_dir)) mkdirSync(dest_dir, { recursive: true })
-
     const file_name = file_path.split(/[\\/]/).pop() || 'wallpaper.png'
-    const dest_path = join(dest_dir, file_name)
-    copyFileSync(file_path, dest_path)
-
     db().run(
       'INSERT INTO wallpapers (file_name, file_path, is_active) VALUES (?, ?, 1)',
-      [file_name, dest_path]
+      [file_name, file_path]
     )
 
-    return dest_path
+    return file_path
   })
 }
