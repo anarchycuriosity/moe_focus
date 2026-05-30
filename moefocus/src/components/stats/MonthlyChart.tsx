@@ -4,6 +4,7 @@ import {
   ResponsiveContainer, Legend, Cell
 } from 'recharts'
 import dayjs from 'dayjs'
+import { get_subject_color } from '../../styles/chartColors'
 
 interface Props
 {
@@ -18,8 +19,6 @@ interface BreakdownRow
   color: string
   total_seconds: number
 }
-
-const fallback_colors = ['#FFB7C5', '#C9A9DC', '#B5EAD7', '#C7CEEA', '#FFE5B4', '#FFD1DC', '#D4C5E8', '#A8D8EA', '#FF9999', '#99CCFF']
 
 export function MonthlyChart({ month, chart_type }: Props): JSX.Element
 {
@@ -54,7 +53,7 @@ export function MonthlyChart({ month, chart_type }: Props): JSX.Element
 
     if (!subject_colors.has(row.subject))
     {
-      subject_colors.set(row.subject, row.color || fallback_colors[subject_colors.size % fallback_colors.length])
+      subject_colors.set(row.subject, get_subject_color(row.subject, row.color))
     }
   }
 
@@ -109,7 +108,7 @@ export function MonthlyChart({ month, chart_type }: Props): JSX.Element
           />
           <Bar dataKey="分钟" radius={[0, 8, 8, 0]} maxBarSize={30}>
             {pie_data.map((_, i) => (
-              <Cell key={i} fill={subject_colors.get(pie_data[i].name) || fallback_colors[i % fallback_colors.length]} />
+              <Cell key={i} fill={subject_colors.get(pie_data[i].name) || get_subject_color(pie_data[i].name)} />
             ))}
           </Bar>
         </BarChart>

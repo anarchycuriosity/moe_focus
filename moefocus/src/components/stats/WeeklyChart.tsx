@@ -4,6 +4,7 @@ import {
   ResponsiveContainer, Legend, Cell
 } from 'recharts'
 import dayjs from 'dayjs'
+import { get_subject_color } from '../../styles/chartColors'
 
 interface Props
 {
@@ -20,7 +21,6 @@ interface BreakdownRow
 }
 
 const day_labels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
-const fallback_colors = ['#FFB7C5', '#C9A9DC', '#B5EAD7', '#C7CEEA', '#FFE5B4', '#FFD1DC', '#D4C5E8', '#A8D8EA', '#FF9999', '#99CCFF']
 
 export function WeeklyChart({ week_start, chart_type }: Props): JSX.Element
 {
@@ -41,7 +41,7 @@ export function WeeklyChart({ week_start, chart_type }: Props): JSX.Element
     if (row.subject === '专注') continue
     if (!subject_set.has(row.subject))
     {
-      subject_set.set(row.subject, row.color || fallback_colors[subject_set.size % fallback_colors.length])
+      subject_set.set(row.subject, get_subject_color(row.subject, row.color))
     }
   }
   const subjects = Array.from(subject_set.keys())
@@ -101,7 +101,7 @@ export function WeeklyChart({ week_start, chart_type }: Props): JSX.Element
           />
           <Bar dataKey="分钟" radius={[0, 8, 8, 0]} maxBarSize={30}>
             {pie_data.map((_, i) => (
-              <Cell key={i} fill={subject_set.get(pie_data[i].name) || fallback_colors[i % fallback_colors.length]} />
+              <Cell key={i} fill={subject_set.get(pie_data[i].name) || get_subject_color(pie_data[i].name)} />
             ))}
           </Bar>
         </BarChart>
