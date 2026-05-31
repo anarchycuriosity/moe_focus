@@ -1,55 +1,43 @@
 我们正在做一个叫MoeFocus的日记+专注时间统计的专注钟，类似windows的专注钟但有一些新功能集成。我们现在主要先做moefocus文件夹下的桌面端部分，moefocus-mobile文件夹下的移动端先不管。修复记录的内容已经被修复了，现在部分模块已经比较稳定了，但有以下问题你需要修复。你对以下的每点内容都要分别提交，而不是改完所有才提交。**每次对话结束前必须按下方格式在本文末尾追加修复记录review，方便下次开新终端循环。**
 
-1：我尝试克隆一份来测试，报错如下。你对比一下当前项目的环境和模拟的客户测试的文件夹下的环境差别，重写安装脚本，你先自己在外面文件夹克隆测试一次看看能不能跑通，能跑通才算数，测试完删掉那个文件夹。
+1： 虽然你修改了安装脚本，我尝试克隆一份来测试，报错如下。你对比一下当前项目的环境和模拟的客户测试的文件夹下的环境差别，重写安装脚本，你先自己在外面文件夹克隆测试一次看看能不能跑通，能跑通才算数，测试完删掉那个文件夹。因为当前项目我们第一次是直接去网址那里下载的，所以不会有网络问题，所以我想你可以尝试这个思路。
 
 ```powershell
+ PS C:\Users\curiosity\claude_pros\cli_test\moe_focus\moefocus> .\setup.ps1
+ MoeFocus 安装脚本
+====================
+[1/2] 安装依赖 (使用淘宝镜像)...
+
+up to date in 650ms
+
+140 packages are looking for funding
+  run `npm fund` for details
+[*] Electron 二进制未解压，尝试重新安装...
+Electron 二进制仍然缺失！
+  1. 检查网络连接
+  2. 删除 %LOCALAPPDATA%\electron\Cache 后重试
+按回车退出:
+
+PS C:\Users\curiosity\claude_pros\cli_test\moe_focus\moefocus> .\start-dev.bat
+
  ====================================
   MoeFocus - Dev Server Launcher
  ====================================
 
-[*] Starting dev server...
-    Press Ctrl+C to stop.
+[!] Electron binary not found. Retrying download
+'extraction...' is not recognized as an internal or external command,
+operable program or batch file.
 
 
-> moefocus@1.0.0 dev
-> electron-vite dev
-
-vite v5.4.21 building SSR bundle for development...
-✓ 8 modules transformed.
-out/main/index.js  36.06 kB
-✓ built in 127ms
-
-build the electron main process successfully
-
------
-
-vite v5.4.21 building SSR bundle for development...
-✓ 1 modules transformed.
-out/preload/index.js  5.53 kB
-✓ built in 11ms
-
-build the electron preload files successfully
-
------
-
-dev server running for the electron renderer process at:
-
-  ➜  Local:   http://localhost:5173/
-  ➜  Network: use --host to expose
-error during start dev server and electron app:
-Error: Electron uninstall
-    at getElectronPath (file:///C:/Users/curiosity/claude_pros/moe_fo_cli_test/moe_focus/moefocus/node_modules/electron-vite/dist/chunks/lib-BmEkZIgk.mjs:129:19)
-    at startElectron (file:///C:/Users/curiosity/claude_pros/moe_fo_cli_test/moe_focus/moefocus/node_modules/electron-vite/dist/chunks/lib-BmEkZIgk.mjs:198:26)
-    at createServer (file:///C:/Users/curiosity/claude_pros/moe_fo_cli_test/moe_focus/moefocus/node_modules/electron-vite/dist/chunks/lib-t2ExBjL5.mjs:74:14)
-    at async CAC.<anonymous> (file:///C:/Users/curiosity/claude_pros/moe_fo_cli_test/moe_focus/moefocus/node_modules/electron-vite/dist/cli.mjs:67:9)
-
-[X] Dev server exited with an error.
+[X] Electron binary still missing after retry. Possible causes:
+   1. Network issue — check your connection.
+   2. Corrupted cache — delete %LOCALAPPDATA%\electron\Cache and retry.
 Press any key to continue . . .
 ```
 
 
 
-2:暗色模式下的设置部分的字体依旧非常丑陋根本看不清，尤其是设置下的GitHub的反馈部分。
+
 
 ---
 
@@ -210,4 +198,29 @@ Press any key to continue . . .
 
 ### 项目现状
 - 提交记录：7 commits ahead of origin/main（含本轮 2 commits），待 push
+- 壁纸/日记图片正常，核心功能（计时/统计/同步/设置）稳定
+
+---
+
+## 2026-05-31 第五轮修复记录 (claude: Kurisu)
+
+### 已完成 (1 commit)
+
+**1. 绕过 @electron/get 直接下载 Electron 二进制** (`197afa2`)
+- **根因**: 第四轮的 `ELECTRON_MIRROR` 方案仍依赖 `@electron/get` 中间库，镜像格式/网络波动可导致下载失败；`start-dev.bat` 中 `echo ... download & extraction` 的 `&` 被 cmd 解析为命令分隔符，产生语法错误
+- **修复**:
+  - `npm install` 后直接检测 `electron.exe` 是否存在
+  - 缺失时从 npmmirror/GitHub 直接 HTTP 下载 zip（`Invoke-WebRequest`）并解压（`Expand-Archive`），双 URL 兜底
+  - 版本号从已安装的 `node_modules/electron/package.json` 读取确切版本，不依赖语义版本范围解析
+  - `start-dev.bat` 中的 `&` 陷阱修复，嵌入式 PowerShell 通过 `^|` 转义管道符
+- **测试**: 在 `cli_test/` 模拟克隆环境，删除 `node_modules` 后运行 `setup.ps1`，npm install → 二进制缺失检测 → 直接下载 → 解压 → `electron.exe` 就绪，全流程通过
+
+### 关键文件变更索引
+| 模块 | 文件 |
+|------|------|
+| 安装脚本 | `setup.ps1`, `start-dev.bat` |
+| 经验文档 | `changes-made/10-electron-direct-download.md`, `changes-made/experience.md` |
+
+### 项目现状
+- 提交记录：8 commits ahead of origin/main，待 push
 - 壁纸/日记图片正常，核心功能（计时/统计/同步/设置）稳定
