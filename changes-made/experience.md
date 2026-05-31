@@ -109,3 +109,24 @@ Electron 的 npm 包和 Electron 二进制文件是分离的：
 **cmd 语法陷阱**：
 - `&` 在 cmd 中是命令分隔符，`echo ... download & extraction` 会被拆成两条命令
 - 嵌入 PowerShell 命令到 bat 文件时，管道符 `|` 在 cmd 双引号内仍保持特殊含义，必须用 `^|` 转义
+
+---
+
+## 第六轮修复 (2026-05-31)
+
+### 10. 绕过 postinstall 不只是跳过下载，还需要复现其副作用
+
+electron 包的 `install.js`（postinstall）做了三件事：**下载 zip → 解压到 dist/ → 写入 path.txt**。我们绕过它直接下载解压，遗漏了最关键的一步——`path.txt`。
+
+**根因**：`electron-vite` 不依赖 `electron.exe` 是否存在，而是读取 `node_modules/electron/path.txt` 来定位可执行文件。这个隐蔽的间接层导致"二进制文件明明存在，但 electron-vite 报 Electron uninstall"。
+
+**教训**：
+- 绕过一个模块的安装脚本时，必须逆向理解该脚本的**全部副作用**，不仅仅是主要操作
+- `path.txt` 是一个元数据文件，内容只有一行（如 `electron.exe`），但它是一个隐式契约——electron-vite、electron-builder 等工具链都依赖它
+- **`Out-File -NoNewline` 至关重要**：`path.txt` 末尾的 `\n` 会被拼入路径，导致 `electron.exe\n` 找不到文件
+- 验证方法：`xxd` 或 `Format-Hex` 检查尾部字节，确保无 `0d 0a` 或 `0a`
+
+**调试技巧**：
+- electron-vite 源码在 `node_modules/electron-vite/dist/chunks/lib-BmEkZIgk.mjs`，`getElectronPath()` 函数只有 ~20 行，直接阅读即可定位问题
+- 模拟克隆环境是发现这类问题的唯一手段——当前开发环境的 postinstall 曾经成功过（残留了 path.txt），不会触发 bug
+- 每次修改安装脚本后，必须在干净的克隆环境（无 node_modules、无缓存）中完整测试一次

@@ -224,3 +224,29 @@ Press any key to continue . . .
 ### 项目现状
 - 提交记录：8 commits ahead of origin/main，待 push
 - 壁纸/日记图片正常，核心功能（计时/统计/同步/设置）稳定
+
+---
+
+## 2026-05-31 第六轮修复记录 (claude: Kurisu)
+
+### 已完成 (1 commit)
+
+**1. 修复安装后 electron-vite 报 "Electron uninstall"** (`<待提交>`)
+- **根因**: electron 包的 `install.js`（postinstall）除了下载解压 zip，还会写入 `node_modules/electron/path.txt`（内容为平台可执行文件名，Windows 为 `electron.exe`）。electron-vite 的 `getElectronPath()` 通过读取 `path.txt` 定位二进制，而非直接检测 `electron.exe` 是否存在。第五轮绕过 postinstall 直接下载解压的方案遗漏了 `path.txt` 写入步骤。
+- **修复**:
+  - `setup.ps1`：`Expand-Archive` 后新增 `Out-File -FilePath "node_modules\electron\path.txt" -Encoding ascii -NoNewline`，写入 `electron.exe` 末尾无换行
+  - `start-dev.bat`：嵌入式 PowerShell 命令中同样操作，`|` 在 batch 中须转义为 `^|`
+  - 关键细节：`path.txt` 末尾的 `\n` 会被 `path.join(dir, 'dist', 'electron.exe\n')` 拼入路径导致 ENOENT，必须用 `-NoNewline` 或 `printf "%s"` 写入
+- **测试**: 在 `cli_test/` 模拟克隆环境（复制 git tracked files → 无 node_modules），运行 `setup.ps1`：npm install → 二进制缺失检测 → npmmirror 直接下载 → 解压 → path.txt 写入 → `npm run dev` 启动成功，Electron 窗口正常运行，全流程通过。测试目录已清理。
+
+### 关键文件变更索引
+| 模块 | 文件 |
+|------|------|
+| 安装脚本 | `setup.ps1`, `start-dev.bat` |
+| 经验文档 | `changes-made/11-electron-path-txt-fix.md`, `changes-made/experience.md` |
+| 项目文档 | `prompt.md` |
+
+### 项目现状
+- 提交记录：9 commits ahead of origin/main，待 push
+- 克隆后安装流程修复：npm install + 直接下载 Electron + path.txt 写入，全流程验证通过
+- 壁纸/日记图片正常，核心功能（计时/统计/同步/设置）稳定

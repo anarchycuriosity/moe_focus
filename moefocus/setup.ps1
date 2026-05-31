@@ -74,6 +74,8 @@ if (Test-Path $electron_exe) {
         exit 1
     }
 
+    # 写入 path.txt，electron-vite 通过此文件定位二进制
+    "electron.exe" | Out-File -FilePath "node_modules\electron\path.txt" -Encoding ascii -NoNewline
     Write-Host "[OK] Electron v$ver 安装完成" -ForegroundColor Green
 }
 
