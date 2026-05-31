@@ -70,7 +70,8 @@ const electron_api = {
     get_weekly_breakdown: (week_start: string) =>
       ipcRenderer.invoke('stats:getWeeklyBreakdown', week_start),
     get_monthly_breakdown: (month: string) =>
-      ipcRenderer.invoke('stats:getMonthlyBreakdown', month)
+      ipcRenderer.invoke('stats:getMonthlyBreakdown', month),
+    sync_cleanup: () => ipcRenderer.invoke('stats:syncCleanup')
   },
   settings:
   {

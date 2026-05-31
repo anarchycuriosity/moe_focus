@@ -10,6 +10,7 @@ interface Props
 {
   month: string  // 'YYYY-MM'
   chart_type: 'bar' | 'circle'
+  refresh_trigger?: number
 }
 
 interface BreakdownRow
@@ -20,7 +21,7 @@ interface BreakdownRow
   total_seconds: number
 }
 
-export function MonthlyChart({ month, chart_type }: Props): JSX.Element
+export function MonthlyChart({ month, chart_type, refresh_trigger }: Props): JSX.Element
 {
   const [raw_data, set_raw_data] = useState<BreakdownRow[]>([])
 
@@ -30,7 +31,7 @@ export function MonthlyChart({ month, chart_type }: Props): JSX.Element
     {
       set_raw_data(raw as BreakdownRow[])
     })
-  }, [month])
+  }, [month, refresh_trigger])
 
   // Group data by week of month, merge same subject names
   const weeks: Record<number, Record<string, number>> = {}

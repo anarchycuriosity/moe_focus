@@ -250,3 +250,36 @@ Press any key to continue . . .
 - 提交记录：9 commits ahead of origin/main，待 push
 - 克隆后安装流程修复：npm install + 直接下载 Electron + path.txt 写入，全流程验证通过
 - 壁纸/日记图片正常，核心功能（计时/统计/同步/设置）稳定
+
+---
+
+## 2026-05-31 第七轮修复记录 (claude: Kurisu)
+
+### 已完成 (1 commit)
+
+**1. 日记删除级联清理专注数据 + 统计同步按钮** (`<待提交>`)
+- **根因**: `diary:deleteEntry` 只删 `diary_entries` 行，同日期 `focus_sessions` 和 `sums/YYYY-MM-DD.md` 文件原封不动。`focus_sessions` 与 `diary_entries` 仅通过 `date` 字段隐式关联，无外键无级联。统计查询只查 `focus_sessions` 表，不 JOIN `diary_entries`，所以删除日记后图表数据不变。
+- **修复**:
+  - `diary:deleteEntry` 增强：DELETE focus_sessions WHERE date=? → DELETE diary_entries → 删除 sums/ 文件，返回 `deleted_sessions` 计数
+  - 新增 `stats:syncCleanup` handler：`DELETE FROM focus_sessions WHERE date NOT IN (SELECT DISTINCT date FROM diary_entries)`，批量清理孤儿数据，返回 `cleaned_sessions`
+  - 统计页（`StatsDashboard`）新增 `🔄 同步数据` 按钮，调用 `syncCleanup` 后显示 toast 消息并触发子组件刷新
+  - `WeeklyChart`/`MonthlyChart`/`FocusBreakdown` 新增 `refresh_trigger` prop，作为 useEffect 依赖触发重新拉取，比 `key` 强制重挂载更平滑
+  - `todo_items` 保持不动 — 待办事项独立于日记，删除日记不应销毁任务历史
+- **类型补充**: 顺便修复 `electron.d.ts` 中 `get_weekly_breakdown`/`get_monthly_breakdown` 缺失的声明 + 新增 `BreakdownRow` 接口
+
+### 关键文件变更索引
+| 模块 | 文件 |
+|------|------|
+| IPC Handler | `electron/ipc/index.ts` |
+| Preload | `electron/preload.ts` |
+| 类型声明 | `src/types/electron.d.ts` |
+| 统计 UI | `src/components/stats/StatsDashboard.tsx` |
+| 图表组件 | `WeeklyChart.tsx`, `MonthlyChart.tsx`, `FocusBreakdown.tsx` |
+| 经验文档 | `changes-made/12-diary-delete-cascade-focus.md`, `changes-made/experience.md` |
+| 项目文档 | `prompt.md` |
+
+### 项目现状
+- 提交记录：10 commits ahead of origin/main，待 push
+- 日记删除→专注数据级联清理→统计实时反映，流程闭环
+- 克隆后安装流程修复稳定
+- 壁纸/日记图片正常，核心功能（计时/统计/同步/设置）稳定

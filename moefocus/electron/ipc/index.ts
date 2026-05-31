@@ -1,9 +1,11 @@
-import { ipcMain, BrowserWindow, dialog } from 'electron'
+import { ipcMain, BrowserWindow, dialog, app } from 'electron'
 import { DatabaseService } from '../services/DatabaseService'
 import { DiaryService } from '../services/DiaryService'
 import { git_service } from '../services/GitService'
 import { email_service } from '../services/EmailService'
 import { main_window } from '../main'
+import { existsSync, unlinkSync } from 'fs'
+import { join } from 'path'
 
 export async function registerAllHandlers(): Promise<void>
 {
@@ -301,8 +303,22 @@ function registerDiaryHandlers(): void
 
   ipcMain.handle('diary:deleteEntry', (_event, date) =>
   {
+    // 级联删除同日期 focus_sessions
+    const session_result = db().run('DELETE FROM focus_sessions WHERE date = ?', [date])
+    const deleted_sessions = db().get('SELECT changes() as n') as { n: number }
+
+    // 删除日记条目
     db().run('DELETE FROM diary_entries WHERE date = ?', [date])
-    return { success: true }
+
+    // 删除 sums/ 文件
+    const sums_dir = join(app.getPath('userData'), 'sums')
+    const file_path = join(sums_dir, `${date}.md`)
+    if (existsSync(file_path))
+    {
+      unlinkSync(file_path)
+    }
+
+    return { success: true, deleted_sessions: deleted_sessions.n }
   })
 }
 
@@ -389,6 +405,17 @@ function registerStatsHandlers(): void
        ORDER BY fs.date, total_seconds DESC`,
       [month]
     )
+  })
+
+  // 清理孤儿 focus_sessions：删除那些日期没有对应 diary_entry 的会话
+  ipcMain.handle('stats:syncCleanup', () =>
+  {
+    const result = db().run(
+      `DELETE FROM focus_sessions
+       WHERE date NOT IN (SELECT DISTINCT date FROM diary_entries)`
+    )
+    const changes = db().get('SELECT changes() as n') as { n: number }
+    return { success: true, cleaned_sessions: changes.n }
   })
 }
 

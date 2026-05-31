@@ -5,11 +5,12 @@ import dayjs from 'dayjs'
 interface Props
 {
   week_start: string
+  refresh_trigger?: number
 }
 
 const moe_colors = ['#FFB7C5', '#C9A9DC', '#B5EAD7', '#C7CEEA', '#FFE5B4', '#FFD1DC', '#D4C5E8', '#A8D8EA']
 
-export function FocusBreakdown({ week_start }: Props): JSX.Element
+export function FocusBreakdown({ week_start, refresh_trigger }: Props): JSX.Element
 {
   const [data, set_data] = useState<Array<{ label: string; color: string; total_seconds: number }>>([])
 
@@ -20,7 +21,7 @@ export function FocusBreakdown({ week_start }: Props): JSX.Element
     {
       set_data(raw as Array<{ label: string; color: string; total_seconds: number }>)
     })
-  }, [week_start])
+  }, [week_start, refresh_trigger])
 
   if (data.length === 0)
   {

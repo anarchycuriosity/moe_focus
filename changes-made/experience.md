@@ -130,3 +130,28 @@ electron 包的 `install.js`（postinstall）做了三件事：**下载 zip → 
 - electron-vite 源码在 `node_modules/electron-vite/dist/chunks/lib-BmEkZIgk.mjs`，`getElectronPath()` 函数只有 ~20 行，直接阅读即可定位问题
 - 模拟克隆环境是发现这类问题的唯一手段——当前开发环境的 postinstall 曾经成功过（残留了 path.txt），不会触发 bug
 - 每次修改安装脚本后，必须在干净的克隆环境（无 node_modules、无缓存）中完整测试一次
+
+---
+
+## 第七轮修复 (2026-05-31)
+
+### 11. 级联删除：数据库操作不是孤立的事务
+
+删除日记时只删 `diary_entries` 行，同日期 `focus_sessions` 和 `sums/` 文件原封不动。统计查询只看 `focus_sessions` 表，与 `diary_entries` 无 JOIN — 所以删除日记后图表数据不变。
+
+**根因**：两个表仅通过共享 `date` 字段隐式关联，没有外键约束，更没有级联删除语义。`DELETE FROM diary_entries` 不会触发任何副作用。
+
+**思维出发点**：当两个实体通过业务逻辑关联（而非数据库外键），删除操作需要手动梳理级联范围：
+- `focus_sessions` → 应该删除（专注数据是日记的组成部分）
+- `todo_items` → 不应删除（待办事项是独立的任务规划，日期只是时间属性）
+- `sums/YYYY-MM-DD.md` → 应该删除（磁盘文件是数据库内容的投影）
+
+**教训**：
+- 数据库操作不等于业务操作 — `DELETE FROM diary_entries` 只是第一步，还需要级联清理关联数据和磁盘文件
+- 不依赖于用户手动比对 + 按钮 — 级联删除在 `diary:deleteEntry` 中一步到位，用户感知是「删了日记统计就少」
+- `stats:syncCleanup` 作为兜底 — 处理历史残留的孤儿数据（在级联删除实现之前产生的），之后理论上不再产生
+- **`refresh_trigger` 模式**：子组件用 `useEffect([dep, refresh_trigger])` 而非 `key` 强制重挂载，既触发刷新又不闪烁
+
+**调试技巧**：
+- `SELECT changes()` 是 SQLite 的内置函数，返回上一条 DML 语句影响的行数，非常适合返回给前端做 toast 消息
+- TypeScript 类型声明与实际 preload API 不同步是常见坑 — 补 `sync_cleanup` 时顺便修了 `get_weekly_breakdown`/`get_monthly_breakdown` 的缺失声明

@@ -10,6 +10,7 @@ interface Props
 {
   week_start: string
   chart_type: 'bar' | 'circle'
+  refresh_trigger?: number
 }
 
 interface BreakdownRow
@@ -22,7 +23,7 @@ interface BreakdownRow
 
 const day_labels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 
-export function WeeklyChart({ week_start, chart_type }: Props): JSX.Element
+export function WeeklyChart({ week_start, chart_type, refresh_trigger }: Props): JSX.Element
 {
   const [raw_data, set_raw_data] = useState<BreakdownRow[]>([])
 
@@ -32,7 +33,7 @@ export function WeeklyChart({ week_start, chart_type }: Props): JSX.Element
     {
       set_raw_data(raw as BreakdownRow[])
     })
-  }, [week_start])
+  }, [week_start, refresh_trigger])
 
   // Build a set of all unique subjects and assign colors (skip default "专注")
   const subject_set = new Map<string, string>() // subject → color

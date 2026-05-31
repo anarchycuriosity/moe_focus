@@ -108,6 +108,14 @@ interface FocusItemStat
   total_seconds: number
 }
 
+interface BreakdownRow
+{
+  date: string
+  subject: string
+  color: string
+  total_seconds: number
+}
+
 interface ElectronAPI
 {
   tasks: {
@@ -146,6 +154,9 @@ interface ElectronAPI
     get_weekly: (week_start: string) => Promise<WeeklyStat[]>
     get_monthly: (month: string) => Promise<MonthlyStat[]>
     get_focus_items: (start_date: string, end_date: string) => Promise<FocusItemStat[]>
+    get_weekly_breakdown: (week_start: string) => Promise<BreakdownRow[]>
+    get_monthly_breakdown: (month: string) => Promise<BreakdownRow[]>
+    sync_cleanup: () => Promise<{ success: boolean; cleaned_sessions: number }>
   }
   settings: {
     get: (key: string) => Promise<string | null>
