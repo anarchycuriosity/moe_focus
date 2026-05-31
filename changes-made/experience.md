@@ -90,3 +90,22 @@ Electron 的 npm 包和 Electron 二进制文件是分离的：
 - `color-scheme: dark/light` 不仅影响 CSS，还控制浏览器原生控件（下拉菜单、日历选择器等）的渲染主题
 - 毛玻璃背景上文字对比度需要比纯色背景高一档——底层壁纸的亮度和色相不可预测，需要安全边际
 - 区分信息层级用 `opacity` 而非不同颜色变量：同一色相 + 不同透明度 = 和谐层级；不同色相 = 视觉碎片化
+
+---
+
+## 第五轮修复 (2026-05-31)
+
+### 9. 绕过中间库，直接下载二进制
+
+`@electron/get` 作为中间库增加了一层不确定性：镜像 URL 格式、SHA256 校验、网络超时重试均由库控制。当镜像下载失败时，无法判断是镜像源问题还是库的兼容性问题。
+
+**教训**：
+- Electron 的 npm 包和二进制完全解耦——npm 包走 registry，二进制走 GitHub Releases。设置 `ELECTRON_MIRROR` 只影响后者
+- `@electron/get` 的 postinstall 失败不阻断 `npm install`，导致 `node_modules` 装好但 `electron.exe` 缺失的半成品状态
+- **直接 HTTP 下载 zip 比依赖 postinstall 更可控**：一个 `Invoke-WebRequest` + `Expand-Archive` 解决问题
+- 双 URL 兜底是网络不可靠环境的标配：npmmirror（国内快） → GitHub（稳定备用）
+- 版本号必须从 `node_modules/electron/package.json` 读取确切版本，而非解析语义版本范围
+
+**cmd 语法陷阱**：
+- `&` 在 cmd 中是命令分隔符，`echo ... download & extraction` 会被拆成两条命令
+- 嵌入 PowerShell 命令到 bat 文件时，管道符 `|` 在 cmd 双引号内仍保持特殊含义，必须用 `^|` 转义
