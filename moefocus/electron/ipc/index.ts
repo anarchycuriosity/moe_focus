@@ -491,6 +491,11 @@ function registerGitHandlers(): void
   ipcMain.handle('git:setRemote', async (_event, url) => git_service.set_remote(url))
   ipcMain.handle('git:getRemote', async () => git_service.get_remote())
   ipcMain.handle('git:initRepo', async () => git_service.init_repo())
+  ipcMain.handle('git:sync', async () =>
+  {
+    const branch = get_branch()
+    return git_service.sync(branch)
+  })
 }
 
 // ===== Phase 5: QQ 邮箱 — 发送/提醒/测试连接 =====

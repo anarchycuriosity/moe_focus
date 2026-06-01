@@ -40,18 +40,12 @@ export class SchedulerService
       // Generate diary
       DiaryService.generate(today)
 
-      // Auto commit and push if enabled
+      // Auto sync if enabled (fetch + merge + commit + push)
       const auto_commit = db.get('SELECT value FROM settings WHERE key = ?', ['diary.autoCommit'])
-      const auto_push = db.get('SELECT value FROM settings WHERE key = ?', ['diary.autoPush'])
 
       if ((auto_commit as { value: string } | undefined)?.value === 'true')
       {
-        await git_service.commit(`diary: auto-generate ${today}`)
-
-        if ((auto_push as { value: string } | undefined)?.value === 'true')
-        {
-          await git_service.push()
-        }
+        await git_service.sync()
       }
 
       console.log('Diary auto-generation complete.')

@@ -183,6 +183,14 @@ interface ElectronAPI
     set_remote: (url: string) => Promise<{ success: boolean; url: string }>
     get_remote: () => Promise<{ url: string }>
     init_repo: () => Promise<{ success: boolean; error?: string }>
+    sync: () => Promise<{
+      success: boolean
+      merged_files: string[]
+      new_from_remote: string[]
+      new_subjects: string[]
+      total_added_minutes: number
+      error?: string
+    }>
   }
   email: {
     send: (to: string, subject: string, body: string) => Promise<{ success: boolean; error?: string }>

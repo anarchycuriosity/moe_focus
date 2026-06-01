@@ -4,8 +4,9 @@
 
 import { simpleGit, type SimpleGit } from 'simple-git'
 import { app } from 'electron'
-import { join } from 'path'
-import { writeFileSync, existsSync, mkdirSync } from 'fs'
+import { join, basename } from 'path'
+import { writeFileSync, readFileSync, readdirSync, existsSync, mkdirSync } from 'fs'
+import { merge_diaries, type SyncResult } from './SyncService'
 
 export class GitService
 {
@@ -272,6 +273,138 @@ export class GitService
     {
       return { success: false, error: String(e) }
     }
+  }
+}
+
+  async sync(branch?: string): Promise<SyncResult>
+  {
+    const result: SyncResult = {
+      success: false,
+      merged_files: [],
+      new_from_remote: [],
+      new_subjects: [],
+      total_added_minutes: 0
+    }
+
+    try
+    {
+      const g = await this.get_git()
+      const target = branch || (await this.get_current_branch())
+
+      // Ensure repo and remote exist
+      await this.init_repo()
+      const remote = await this.get_remote()
+      if (!remote.url)
+      {
+        result.error = '未配置远程仓库地址'
+        return result
+      }
+
+      // Step 1: Fetch remote
+      await g.fetch('origin')
+
+      // Step 2: List local diary files
+      const sums_dir = join(this.repo_path, 'sums')
+      if (!existsSync(sums_dir)) mkdirSync(sums_dir, { recursive: true })
+      const local_files = readdirSync(sums_dir).filter((f) => f.endsWith('.md'))
+
+      // Step 3: Merge each local file with remote version
+      for (const filename of local_files)
+      {
+        const local_path = join(sums_dir, filename)
+        const local_content = readFileSync(local_path, 'utf-8')
+
+        // Try to get remote version
+        let remote_content: string | null = null
+        try
+        {
+          remote_content = await g.show([`origin/${target}:sums/${filename}`])
+        }
+        catch
+        {
+          // File doesn't exist on remote — will be added as new
+        }
+
+        if (remote_content)
+        {
+          // Both exist — merge
+          const merged = merge_diaries(local_content, remote_content)
+          if (merged && merged !== local_content)
+          {
+            writeFileSync(local_path, merged, 'utf-8')
+            result.merged_files.push(filename)
+          }
+        }
+        // If only local, keep as-is (will be committed in step 5)
+      }
+
+      // Step 4: Check for remote-only files
+      try
+      {
+        const tree_output = await g.raw(['ls-tree', '--name-only', `origin/${target}:sums/`])
+        const remote_files = tree_output
+          .split('\n')
+          .map((f) => f.trim())
+          .filter((f) => f.endsWith('.md'))
+
+        for (const filename of remote_files)
+        {
+          const local_path = join(sums_dir, filename)
+          if (!existsSync(local_path))
+          {
+            try
+            {
+              const content = await g.show([`origin/${target}:sums/${filename}`])
+              writeFileSync(local_path, content, 'utf-8')
+              result.new_from_remote.push(filename)
+            }
+            catch
+            {
+              // Skip if can't read
+            }
+          }
+        }
+      }
+      catch
+      {
+        // sums/ directory may not exist on remote yet
+      }
+
+      // Step 5: Commit and push
+      const has_changes = result.merged_files.length > 0 || result.new_from_remote.length > 0
+      if (has_changes)
+      {
+        await g.add(['sums/'])
+
+        // Check if there's anything to commit
+        const status = await g.status()
+        if (status.files.length > 0)
+        {
+          await g.commit('sync: merge diary data')
+          await g.push('origin', target)
+        }
+      }
+      else
+      {
+        // Even if no changes, ensure local commits are pushed
+        try
+        {
+          await g.push('origin', target)
+        }
+        catch
+        {
+          // May fail if nothing to push or ahead of remote
+        }
+      }
+
+      result.success = true
+    }
+    catch (e)
+    {
+      result.error = String(e)
+    }
+
+    return result
   }
 }
 

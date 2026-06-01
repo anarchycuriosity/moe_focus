@@ -94,7 +94,8 @@ const electron_api = {
     pull: () => ipcRenderer.invoke('git:pull'),
     set_remote: (url: string) => ipcRenderer.invoke('git:setRemote', url),
     get_remote: () => ipcRenderer.invoke('git:getRemote'),
-    init_repo: () => ipcRenderer.invoke('git:initRepo')
+    init_repo: () => ipcRenderer.invoke('git:initRepo'),
+    sync: () => ipcRenderer.invoke('git:sync')
   },
   email:
   {
