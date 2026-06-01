@@ -1,43 +1,8 @@
 我们正在做一个叫MoeFocus的日记+专注时间统计的专注钟，类似windows的专注钟但有一些新功能集成。我们现在主要先做moefocus文件夹下的桌面端部分，moefocus-mobile文件夹下的移动端先不管。修复记录的内容已经被修复了，现在部分模块已经比较稳定了，但有以下问题你需要修复。你对以下的每点内容都要分别提交，而不是改完所有才提交。**每次对话结束前必须按下方格式在本文末尾追加修复记录review，方便下次开新终端循环。**
 
-1： 虽然你修改了安装脚本，我尝试克隆一份来测试，报错如下。你对比一下当前项目的环境和模拟的客户测试的文件夹下的环境差别，重写安装脚本，你先自己在外面文件夹克隆测试一次看看能不能跑通，能跑通才算数，测试完删掉那个文件夹。因为当前项目我们第一次是直接去网址那里下载的，所以不会有网络问题，所以我想你可以尝试这个思路。
+目前存在的问题：
 
-```powershell
- PS C:\Users\curiosity\claude_pros\cli_test\moe_focus\moefocus> .\setup.ps1
- MoeFocus 安装脚本
-====================
-[1/2] 安装依赖 (使用淘宝镜像)...
-
-up to date in 650ms
-
-140 packages are looking for funding
-  run `npm fund` for details
-[*] Electron 二进制未解压，尝试重新安装...
-Electron 二进制仍然缺失！
-  1. 检查网络连接
-  2. 删除 %LOCALAPPDATA%\electron\Cache 后重试
-按回车退出:
-
-PS C:\Users\curiosity\claude_pros\cli_test\moe_focus\moefocus> .\start-dev.bat
-
- ====================================
-  MoeFocus - Dev Server Launcher
- ====================================
-
-[!] Electron binary not found. Retrying download
-'extraction...' is not recognized as an internal or external command,
-operable program or batch file.
-
-
-[X] Electron binary still missing after retry. Possible causes:
-   1. Network issue — check your connection.
-   2. Corrupted cache — delete %LOCALAPPDATA%\electron\Cache and retry.
-Press any key to continue . . .
-```
-
-
-
-
+1：我想添加一个功能，在侧边栏的今日的那个界面我想添加一个模块来显示当天的计划专注时间和已经专注的时间，采用类似windows专注钟那样的环形圆圈时钟结构，圆圈中间显示每日计划专注的时间（可以实时修改，也可以在设置那里设置一个默认值，在今日界面设置了也会变成默认），当天累积了多少圆圈的边就会累积多少类似现在单次计时的显示效果。“今日”这个界面至此一共会有四个模块，待办事项和今日计划，单次计时和这次要添加的当天总计时。布局方面：计时相关的两个部分都放在右边：上面一个下面一个就好了。
 
 ---
 
@@ -281,5 +246,35 @@ Press any key to continue . . .
 ### 项目现状
 - 提交记录：10 commits ahead of origin/main，待 push
 - 日记删除→专注数据级联清理→统计实时反映，流程闭环
+- 克隆后安装流程修复稳定
+- 壁纸/日记图片正常，核心功能（计时/统计/同步/设置）稳定
+
+---
+
+## 2026-06-01 修复记录 (claude: Kurisu)
+
+### 已完成 (1 commit)
+
+**1. 今日总计时环形圆圈 — 每日专注目标与累积进度** (`<待提交>`)
+- **新增 `DailyFocusRing` 组件**：SVG 环形圆圈 (size=130, stroke=5)，显示每日专注累积进度
+  - 圆环颜色：累积中 `var(--moe-lavender)`，达标后 `var(--moe-mint)`
+  - 圆心显示每日计划专注时间（分钟），点击可实时修改，修改后自动保存为默认值
+  - 底部显示"已专注: Xh Ym"累积时长
+  - 监听 `phase === 'completed'` 自动重新拉取当日累积数据
+- **布局调整**：今日页右栏从 300px 拓宽至 320px，三个计时卡片纵向排列 (DailyFocusRing → FocusTimer → SessionConfig)，间距 16px
+- **设置页**：计时标签页新增「每日专注目标 (分钟)」输入项，默认 120
+- **数据库**：schema.sql 新增 `focus.dailyGoal = '120'` 默认设置
+
+### 关键文件变更索引
+| 模块 | 文件 |
+|------|------|
+| 每日总计时 | `src/components/timer/DailyFocusRing.tsx`(新), `DailyFocusRing.module.css`(新) |
+| 今日页 | `src/pages/TodayPage.tsx`, `TodayPage.module.css` |
+| 设置页 | `src/pages/SettingsPage.tsx` |
+| 数据库 | `electron/database/schema.sql` |
+
+### 项目现状
+- 提交记录：11 commits ahead of origin/main，待 push
+- 今日页四个模块就位：任务库 | 今日计划 | 每日总计时 + 单次计时 + 会话设置
 - 克隆后安装流程修复稳定
 - 壁纸/日记图片正常，核心功能（计时/统计/同步/设置）稳定

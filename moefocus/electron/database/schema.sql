@@ -74,6 +74,7 @@ CREATE INDEX IF NOT EXISTS idx_diary_date ON diary_entries(date);
 -- Default settings
 INSERT OR IGNORE INTO settings (key, value) VALUES ('focus.defaultDuration', '25');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('focus.defaultRestDuration', '5');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('focus.dailyGoal', '120');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('diary.autoGenerateTime', '23:00');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('diary.autoCommit', 'true');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('diary.autoPush', 'true');

@@ -5,7 +5,7 @@
 
 .grid {
   display: grid;
-  grid-template-columns: 260px 1fr 300px;
+  grid-template-columns: 260px 1fr 320px;
   gap: 20px;
   height: calc(100vh - 36px - 48px);
 }
@@ -25,6 +25,7 @@
 .timer_section {
   display: flex;
   flex-direction: column;
+  gap: 16px;
 }
 
 .section_title {

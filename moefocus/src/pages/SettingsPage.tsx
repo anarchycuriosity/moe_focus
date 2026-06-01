@@ -13,6 +13,7 @@ interface SettingsState
 {
   'focus.defaultDuration': string
   'focus.defaultRestDuration': string
+  'focus.dailyGoal': string
   'diary.autoGenerateTime': string
   'diary.autoCommit': string
   'diary.autoPush': string
@@ -330,6 +331,13 @@ export function SettingsPage(): JSX.Element
               type="number"
               value={settings['focus.defaultRestDuration'] || '5'}
               onChange={(e) => update('focus.defaultRestDuration', e.target.value)}
+            />
+            <div style={{ height: '16px' }} />
+            <MoeInput
+              label="每日专注目标 (分钟)"
+              type="number"
+              value={settings['focus.dailyGoal'] || '120'}
+              onChange={(e) => update('focus.dailyGoal', e.target.value)}
             />
           </div>
         )}
