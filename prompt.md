@@ -445,3 +445,29 @@
 - 提交记录：16 commits ahead of origin/main，待 push
 - 同步流程：fetch → 语义合并（累加时间+合并事项）→ commit → push
 - 暂停/继续/重置逻辑正常，核心功能稳定
+
+---
+
+## 2026-06-01 第七轮修复记录 (claude: Kurisu)
+
+### 已完成 (1 commit)
+
+**1. sync() 对齐本地分支到远程 — checkout -B 解决分支不匹配** (`ee7b7bb`)
+- **根因**: 本地数据仓库在 `master` 分支，远程在 `main` 分支。`sync()` 未对齐分支，`push origin main` 因本地无 `main` 分支而静默失败。加上本地和远程 git 历史独立 (unrelated histories)，即使分支正确 push 也会被拒。
+- **修复**:
+  - `sync()` fetch 后 `git checkout -B {target} origin/{target}` 强制对齐本地分支到远程 HEAD
+  - 对齐前将本地 `sums/*.md` 保存到 `Map` 快照，对齐后与远程版本语义合并
+  - `.gitignore` 追加 Electron 缓存目录（`Cache/`、`Local Storage/` 等 14 条），始终覆盖写入而非仅在不存在时创建
+  - `git add` 纳入 `.gitignore`，确保 gitignore 本身也被版本控制
+  - 清理未使用的 import (`basename`)
+- **验证**: 启动后 `git log --all` 确认分支已从 `master` 切换到 `main`，同步成功提交 `sync: merge diary data` 并推送
+
+### 关键文件变更索引
+| 模块 | 文件 |
+|------|------|
+| Git 同步 | `electron/services/GitService.ts` |
+
+### 项目现状
+- 提交记录：17 commits，已 push 至 origin/main
+- 同步流程：fetch → 保存快照 → checkout -B 对齐远程 → 语义合并 → commit + push
+- 分支对齐自动处理 `master`↔`main` 不匹配问题
