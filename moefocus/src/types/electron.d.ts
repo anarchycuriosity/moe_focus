@@ -133,7 +133,7 @@ interface ElectronAPI
   }
   focus: {
     start: (session: FocusInput) => Promise<FocusSession>
-    pause: (id: number) => Promise<{ success: boolean }>
+    pause: (id: number, actual_sec?: number) => Promise<{ success: boolean }>
     resume: (id: number) => Promise<{ success: boolean }>
     complete: (id: number, actual_sec: number) => Promise<{ success: boolean }>
     abandon: (id: number) => Promise<{ success: boolean }>

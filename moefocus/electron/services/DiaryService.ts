@@ -14,32 +14,26 @@ export class DiaryService
   {
     const db = DatabaseService.instance
 
-    // Get focus sessions for the date
+    // Get focus sessions for the date — include paused (partial time) and completed
     const sessions = db.all(
       `SELECT fs.*, COALESCE(t.title, fs.subject) as display_subject
        FROM focus_sessions fs
        LEFT JOIN todo_items ti ON fs.todo_id = ti.id
        LEFT JOIN tasks t ON ti.task_id = t.id
-       WHERE fs.date = ? AND fs.status = 'completed'
+       WHERE fs.date = ? AND fs.status IN ('completed', 'paused')
        ORDER BY fs.started_at`,
-      [date]
-    ) as Array<Record<string, unknown>>
-
-    // Get todo items for the date
-    const todos = db.all(
-      `SELECT ti.*, t.title as task_title, t.color as task_color
-       FROM todo_items ti
-       LEFT JOIN tasks t ON ti.task_id = t.id
-       WHERE ti.date = ?
-       ORDER BY ti.sort_order`,
       [date]
     ) as Array<Record<string, unknown>>
 
     // Calculate total focus time
     let total_focus_sec = 0
+    const subject_times: Record<string, number> = {}
     for (const s of sessions)
     {
-      total_focus_sec += (s.actual_duration_sec as number) || 0
+      const sec = (s.actual_duration_sec as number) || 0
+      total_focus_sec += sec
+      const label = (s.display_subject as string) || '未命名'
+      subject_times[label] = (subject_times[label] || 0) + sec
     }
     const total_min = Math.floor(total_focus_sec / 60)
     const hours = Math.floor(total_min / 60)
@@ -51,51 +45,26 @@ export class DiaryService
     // Summary
     md += `## 📊 今日统计\n\n`
     md += `- **总专注时间**: ${hours} 小时 ${mins} 分钟\n`
-    md += `- **专注会话数**: ${sessions.length}\n`
-    md += `- **完成任务数**: ${todos.filter((t) => t.status === 'done').length} / ${todos.length}\n\n`
+    md += `- **专注会话数**: ${sessions.length}\n\n`
 
-    // Focus sessions
-    if (sessions.length > 0)
+    // Per-subject breakdown
+    if (Object.keys(subject_times).length > 0)
     {
-      md += `## 🎯 专注会话\n\n`
-      md += `| 主题 | 计划时长 | 实际时长 | 开始时间 |\n`
-      md += `|------|----------|----------|----------|\n`
-      for (const s of sessions)
+      md += `## 🎯 事项时间分布\n\n`
+      const sorted = Object.entries(subject_times).sort((a, b) => b[1] - a[1])
+      for (const [subject, sec] of sorted)
       {
-        const actual_min = Math.floor((s.actual_duration_sec as number || 0) / 60)
-        md += `| ${s.display_subject || '未命名'} | ${s.planned_duration_min} 分钟 | ${actual_min} 分钟 | ${(s.started_at as string).slice(11, 19)} |\n`
+        const m = Math.floor(sec / 60)
+        const h = Math.floor(m / 60)
+        const remaining_m = m % 60
+        const time_str = h > 0 ? `${h}h ${remaining_m}m` : `${remaining_m}m`
+        md += `- **${subject}**: ${time_str}\n`
       }
       md += `\n`
     }
-
-    // Tasks
-    md += `## ✅ 任务状态\n\n`
-    const done_tasks = todos.filter((t) => t.status === 'done')
-    const pending_tasks = todos.filter((t) => t.status === 'pending')
-
-    if (done_tasks.length > 0)
+    else
     {
-      md += `### 已完成\n\n`
-      for (const t of done_tasks)
-      {
-        md += `- [x] ${t.custom_title || t.task_title || '未命名任务'}\n`
-      }
-      md += `\n`
-    }
-
-    if (pending_tasks.length > 0)
-    {
-      md += `### 未完成\n\n`
-      for (const t of pending_tasks)
-      {
-        md += `- [ ] ${t.custom_title || t.task_title || '未命名任务'}\n`
-      }
-      md += `\n`
-    }
-
-    if (todos.length === 0)
-    {
-      md += `今日没有添加任务。\n\n`
+      md += `今日没有专注记录。\n\n`
     }
 
     // Self reflection placeholder

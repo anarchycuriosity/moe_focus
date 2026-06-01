@@ -28,7 +28,7 @@ const electron_api = {
   focus:
   {
     start: (session: FocusInput) => ipcRenderer.invoke('focus:start', session),
-    pause: (id: number) => ipcRenderer.invoke('focus:pause', id),
+    pause: (id: number, actual_sec?: number) => ipcRenderer.invoke('focus:pause', id, actual_sec),
     resume: (id: number) => ipcRenderer.invoke('focus:resume', id),
     complete: (id: number, actual_sec: number) => ipcRenderer.invoke('focus:complete', id, actual_sec),
     abandon: (id: number, actual_sec?: number) => ipcRenderer.invoke('focus:abandon', id, actual_sec),

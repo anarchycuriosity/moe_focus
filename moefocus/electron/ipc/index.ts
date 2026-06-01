@@ -209,9 +209,12 @@ function registerFocusHandlers(): void
     return db().get('SELECT * FROM focus_sessions WHERE id = ?', [new_id])
   })
 
-  ipcMain.handle('focus:pause', (_event, id) =>
+  ipcMain.handle('focus:pause', (_event, id, actual_sec) =>
   {
-    db().run("UPDATE focus_sessions SET status = 'paused' WHERE id = ?", [id])
+    db().run(
+      "UPDATE focus_sessions SET status = 'paused', actual_duration_sec = ? WHERE id = ?",
+      [actual_sec || 0, id]
+    )
     return { success: true }
   })
 
@@ -332,7 +335,7 @@ function registerStatsHandlers(): void
     return db().all(
       `SELECT date, SUM(actual_duration_sec) as total_seconds
        FROM focus_sessions
-       WHERE date >= ? AND date < date(?, '+7 days') AND status != 'running' AND status != 'paused'
+       WHERE date >= ? AND date < date(?, '+7 days') AND status != 'running'
        GROUP BY date
        ORDER BY date`,
       [week_start, week_start]
@@ -348,7 +351,7 @@ function registerStatsHandlers(): void
               strftime('%w', date) AS day_of_week,
               SUM(actual_duration_sec) as total_seconds
        FROM focus_sessions
-       WHERE strftime('%Y-%m', date) = ? AND status != 'running' AND status != 'paused'
+       WHERE strftime('%Y-%m', date) = ? AND status != 'running'
        GROUP BY date
        ORDER BY date`,
       [month, month]
@@ -364,7 +367,7 @@ function registerStatsHandlers(): void
        FROM focus_sessions fs
        LEFT JOIN todo_items ti ON fs.todo_id = ti.id
        LEFT JOIN tasks t ON ti.task_id = t.id
-       WHERE fs.date BETWEEN ? AND ? AND fs.status NOT IN ('running', 'paused')
+       WHERE fs.date BETWEEN ? AND ? AND fs.status != 'running'
        GROUP BY label
        ORDER BY total_seconds DESC`,
       [start_date, end_date]
@@ -382,7 +385,7 @@ function registerStatsHandlers(): void
        LEFT JOIN todo_items ti ON fs.todo_id = ti.id
        LEFT JOIN tasks t ON ti.task_id = t.id
        WHERE fs.date >= ? AND fs.date < date(?, '+7 days')
-         AND fs.status NOT IN ('running', 'paused')
+         AND fs.status != 'running'
        GROUP BY fs.date, subject
        ORDER BY fs.date, total_seconds DESC`,
       [week_start, week_start]
@@ -400,7 +403,7 @@ function registerStatsHandlers(): void
        LEFT JOIN todo_items ti ON fs.todo_id = ti.id
        LEFT JOIN tasks t ON ti.task_id = t.id
        WHERE strftime('%Y-%m', fs.date) = ?
-         AND fs.status NOT IN ('running', 'paused')
+         AND fs.status != 'running'
        GROUP BY fs.date, subject
        ORDER BY fs.date, total_seconds DESC`,
       [month]

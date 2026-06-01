@@ -67,8 +67,9 @@ export function useFocusTimer()
   {
     clear()
     const s = useFocusStore.getState()
+    const actual = s.total_seconds - s.remaining_seconds
     s.pause_session()
-    if (s.session_id) await window.electronAPI.focus.pause(s.session_id)
+    if (s.session_id) await window.electronAPI.focus.pause(s.session_id, actual > 0 ? actual : 0)
   }
 
   const resume = () =>
