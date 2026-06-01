@@ -278,3 +278,31 @@
 - 今日页四个模块就位：任务库 | 今日计划 | 每日总计时 + 单次计时 + 会话设置
 - 克隆后安装流程修复稳定
 - 壁纸/日记图片正常，核心功能（计时/统计/同步/设置）稳定
+
+---
+
+## 2026-06-01 第二轮修复记录 (claude: Kurisu)
+
+### 已完成 (1 commit)
+
+**1. GitService push/pull/sync 分支硬编码修复** (`d7a01a5`)
+- **根因**: `GitService.push()` 和 `pull()` 硬编码 `'main'` 作为分支名，完全忽略用户在设置中配置的 `github.branch`（例如数据仓库使用 `master` 分支）。`check_sync_status()` 的 ahead/behind 计数也硬编码 `status.current || 'main'`，回退值不读取设置。
+- **修复**:
+  - `GitService` 新增 `get_current_branch()` 私有方法，从 `git status` 自动检测当前分支
+  - `push(branch?)` 和 `pull(branch?)` 新增可选 `branch` 参数，未传时自动检测
+  - `check_sync_status(branch?)` 新增可选 `branch` 参数，优先使用传入值
+  - IPC handlers (`git:push`/`git:pull`/`git:checkSyncStatus`) 从 SQLite `github.branch` 设置读取分支名后传入
+  - `main.ts` 启动时同步拉取同样读取 `github.branch` 设置
+- **影响**: GitHub 同步标签页配置的分支名现在真正生效，不再无论配置什么都用 `main`
+
+### 关键文件变更索引
+| 模块 | 文件 |
+|------|------|
+| Git 服务 | `electron/services/GitService.ts` |
+| IPC 处理 | `electron/ipc/index.ts` |
+| 主进程 | `electron/main.ts` |
+
+### 项目现状
+- 提交记录：12 commits ahead of origin/main，待 push
+- GitHub 同步 (push/pull/status) 分支名从硬编码改为读取设置
+- 今日页四个模块就位，核心功能稳定
