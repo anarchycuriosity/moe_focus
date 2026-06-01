@@ -14,13 +14,13 @@ export class DiaryService
   {
     const db = DatabaseService.instance
 
-    // Get focus sessions for the date — include paused (partial time) and completed
+    // Get completed focus sessions for the date
     const sessions = db.all(
       `SELECT fs.*, COALESCE(t.title, fs.subject) as display_subject
        FROM focus_sessions fs
        LEFT JOIN todo_items ti ON fs.todo_id = ti.id
        LEFT JOIN tasks t ON ti.task_id = t.id
-       WHERE fs.date = ? AND fs.status IN ('completed', 'paused')
+       WHERE fs.date = ? AND fs.status = 'completed'
        ORDER BY fs.started_at`,
       [date]
     ) as Array<Record<string, unknown>>

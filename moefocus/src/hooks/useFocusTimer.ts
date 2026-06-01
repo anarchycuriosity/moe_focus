@@ -68,36 +68,17 @@ export function useFocusTimer()
     clear()
     const s = useFocusStore.getState()
     const actual = s.total_seconds - s.remaining_seconds
-    s.pause_session()
-    if (s.session_id) await window.electronAPI.focus.pause(s.session_id, actual > 0 ? actual : 0)
-  }
-
-  const resume = () =>
-  {
-    const s = useFocusStore.getState()
-    s.resume_session()
-    if (s.session_id) window.electronAPI.focus.resume(s.session_id)
-    interval_ref.current = setInterval(tick, 1000)
+    if (s.session_id) await window.electronAPI.focus.complete(s.session_id, actual > 0 ? actual : 0)
+    s.reset()
   }
 
   const stop = async () =>
   {
     clear()
     const s = useFocusStore.getState()
-    if (s.session_id)
-    {
-      // Calculate actual elapsed time even for abandoned sessions
-      const actual = s.total_seconds - s.remaining_seconds
-      await window.electronAPI.focus.abandon(s.session_id, actual > 0 ? actual : 0)
-    }
-    s.end_session()
+    if (s.session_id) await window.electronAPI.focus.abandon(s.session_id, 0)
+    s.reset()
   }
 
-  const reset = () =>
-  {
-    clear()
-    useFocusStore.getState().reset()
-  }
-
-  return { start, pause, resume, stop, reset }
+  return { start, pause, stop }
 }

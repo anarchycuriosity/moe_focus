@@ -18,7 +18,7 @@ export function DailyFocusRing(): JSX.Element
   {
     const sessions = await window.electronAPI.focus.get_by_date(today_str())
     const total = sessions
-      .filter((s) => s.status === 'completed' || s.status === 'paused')
+      .filter((s) => s.status === 'completed')
       .reduce((sum, s) => sum + s.actual_duration_sec, 0)
     set_accumulated_sec(total)
   }, [])
@@ -39,7 +39,7 @@ export function DailyFocusRing(): JSX.Element
 
   useEffect(() =>
   {
-    if (phase === 'completed')
+    if (phase === 'completed' || phase === 'idle')
     {
       fetch_today()
     }
