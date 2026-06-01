@@ -6,6 +6,7 @@ interface Props
   phase: 'focus' | 'rest' | 'idle' | 'paused' | 'completed'
   on_start: () => void
   on_pause: () => void
+  on_resume: () => void
   on_reset: () => void
 }
 
@@ -13,6 +14,7 @@ export function TimerControls({
   phase,
   on_start,
   on_pause,
+  on_resume,
   on_reset
 }: Props): JSX.Element
 {
@@ -28,6 +30,17 @@ export function TimerControls({
         <>
           <MoeButton variant="secondary" size="md" onClick={on_pause}>
             暂停
+          </MoeButton>
+          <MoeButton variant="ghost" size="md" onClick={on_reset}>
+            重置
+          </MoeButton>
+        </>
+      )}
+
+      {phase === 'paused' && (
+        <>
+          <MoeButton variant="primary" size="md" onClick={on_resume}>
+            继续
           </MoeButton>
           <MoeButton variant="ghost" size="md" onClick={on_reset}>
             重置

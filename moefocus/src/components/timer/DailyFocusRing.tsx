@@ -39,7 +39,7 @@ export function DailyFocusRing(): JSX.Element
 
   useEffect(() =>
   {
-    if (phase === 'completed' || phase === 'idle')
+    if (phase === 'completed' || phase === 'paused')
     {
       fetch_today()
     }

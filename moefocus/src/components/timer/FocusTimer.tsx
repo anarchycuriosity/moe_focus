@@ -16,10 +16,10 @@ export function FocusTimer({ expanded = false }: Props): JSX.Element
     phase, remaining_seconds, total_seconds, subject
   } = useFocusStore()
 
-  const { start, pause, stop } = useFocusTimer()
+  const { start, pause, resume, stop } = useFocusTimer()
 
   const timer_size = expanded ? 260 : 180
-  const is_active = phase === 'focus' || phase === 'rest'
+  const is_active = phase === 'focus' || phase === 'rest' || phase === 'paused'
 
   return (
     <MoeCard className={`${styles.timer} ${expanded ? styles.expanded : ''}`}>
@@ -63,6 +63,7 @@ export function FocusTimer({ expanded = false }: Props): JSX.Element
         phase={phase}
         on_start={start}
         on_pause={pause}
+        on_resume={resume}
         on_reset={stop}
       />
     </MoeCard>

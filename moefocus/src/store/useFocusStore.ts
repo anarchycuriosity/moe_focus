@@ -27,6 +27,7 @@ interface FocusStore extends FocusState
   pause_session: () => void
   resume_session: () => void
   tick: (remaining: number) => void
+  continue_session: (session_id: number) => void
   switch_to_rest: () => void
   end_session: () => void
   reset: () => void
@@ -74,7 +75,17 @@ export const useFocusStore = create<FocusStore>((set, get) => ({
   {
     const { remaining_seconds, total_seconds } = get()
     set({
-      phase: remaining_seconds === total_seconds ? 'focus' : 'focus'
+      phase: 'focus'
+    })
+  },
+
+  continue_session: (session_id) =>
+  {
+    const remaining = get().remaining_seconds
+    set({
+      session_id,
+      phase: 'focus',
+      total_seconds: remaining
     })
   },
 
