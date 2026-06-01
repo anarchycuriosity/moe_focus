@@ -72,8 +72,10 @@ app.whenReady().then(async () =>
     await git_service.init_repo()
     const remote = await git_service.get_remote()
     if (remote.url) {
-      console.log('[sync] pulling from remote:', remote.url)
-      await git_service.pull()
+      const branch_row = DatabaseService.instance.get('SELECT value FROM settings WHERE key = ?', ['github.branch']) as { value: string } | undefined
+      const branch = branch_row?.value || 'main'
+      console.log('[sync] pulling from remote:', remote.url, 'branch:', branch)
+      await git_service.pull(branch)
     }
   }
   catch (e)

@@ -460,11 +460,31 @@ function registerSettingsHandlers(): void
 // ===== Phase 5: Git 同步 — commit/push/pull/remote =====
 function registerGitHandlers(): void
 {
+  const db = () => DatabaseService.instance
+
+  const get_branch = (): string =>
+  {
+    const row = db().get('SELECT value FROM settings WHERE key = ?', ['github.branch']) as { value: string } | undefined
+    return row?.value || 'main'
+  }
+
   ipcMain.handle('git:getStatus', async () => git_service.getStatus())
-  ipcMain.handle('git:checkSyncStatus', async () => git_service.check_sync_status())
+  ipcMain.handle('git:checkSyncStatus', async () =>
+  {
+    const branch = get_branch()
+    return git_service.check_sync_status(branch)
+  })
   ipcMain.handle('git:commit', async (_event, message) => git_service.commit(message))
-  ipcMain.handle('git:push', async () => git_service.push())
-  ipcMain.handle('git:pull', async () => git_service.pull())
+  ipcMain.handle('git:push', async () =>
+  {
+    const branch = get_branch()
+    return git_service.push(branch)
+  })
+  ipcMain.handle('git:pull', async () =>
+  {
+    const branch = get_branch()
+    return git_service.pull(branch)
+  })
   ipcMain.handle('git:setRemote', async (_event, url) => git_service.set_remote(url))
   ipcMain.handle('git:getRemote', async () => git_service.get_remote())
   ipcMain.handle('git:initRepo', async () => git_service.init_repo())

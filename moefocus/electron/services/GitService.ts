@@ -58,7 +58,21 @@ export class GitService
     }
   }
 
-  async check_sync_status(): Promise<{
+  private async get_current_branch(): Promise<string>
+  {
+    try
+    {
+      const g = await this.get_git()
+      const status = await g.status()
+      return status.current || 'main'
+    }
+    catch
+    {
+      return 'main'
+    }
+  }
+
+  async check_sync_status(branch?: string): Promise<{
     is_repo: boolean
     has_remote: boolean
     remote_url: string
@@ -99,7 +113,7 @@ export class GitService
       result.remote_url = origin?.refs?.fetch || ''
 
       const status = await g.status()
-      result.branch = status.current || ''
+      result.branch = branch || status.current || 'main'
       result.uncommitted = status.files.length
 
       if (result.has_remote)
@@ -123,9 +137,9 @@ export class GitService
       // Count ahead/behind via rev-list style
       try
       {
-        const branch = status.current || 'main'
-        const behind_raw = await g.raw(['rev-list', '--count', `${branch}..origin/${branch}`])
-        const ahead_raw = await g.raw(['rev-list', '--count', `origin/${branch}..${branch}`])
+        const tracking_branch = result.branch
+        const behind_raw = await g.raw(['rev-list', '--count', `${tracking_branch}..origin/${tracking_branch}`])
+        const ahead_raw = await g.raw(['rev-list', '--count', `origin/${tracking_branch}..${tracking_branch}`])
         result.behind = parseInt(behind_raw.trim(), 10) || 0
         result.ahead = parseInt(ahead_raw.trim(), 10) || 0
       }
@@ -166,12 +180,13 @@ export class GitService
     }
   }
 
-  async push(): Promise<{ success: boolean; error?: string }>
+  async push(branch?: string): Promise<{ success: boolean; error?: string }>
   {
     try
     {
       const g = await this.get_git()
-      await g.push('origin', 'main')
+      const target = branch || (await this.get_current_branch())
+      await g.push('origin', target)
       return { success: true }
     }
     catch (e)
@@ -180,12 +195,13 @@ export class GitService
     }
   }
 
-  async pull(): Promise<{ success: boolean; error?: string }>
+  async pull(branch?: string): Promise<{ success: boolean; error?: string }>
   {
     try
     {
       const g = await this.get_git()
-      await g.pull('origin', 'main')
+      const target = branch || (await this.get_current_branch())
+      await g.pull('origin', target)
       return { success: true }
     }
     catch (e)
