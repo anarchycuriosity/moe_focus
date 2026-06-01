@@ -306,3 +306,41 @@
 - 提交记录：12 commits ahead of origin/main，待 push
 - GitHub 同步 (push/pull/status) 分支名从硬编码改为读取设置
 - 今日页四个模块就位，核心功能稳定
+
+---
+
+## 2026-06-01 第三轮修复记录 (claude: Kurisu)
+
+### 已完成 (1 commit)
+
+**1. 暂停即统计 + 日记精简 + 统计纳入暂停** (`ffe1ceb`)
+- **根因**: 
+  - `focus:pause` 只写 `status = 'paused'`，不记录 `actual_duration_sec`，导致暂停期间的已用时间丢失
+  - `DiaryService.generate()` 仅查 `status = 'completed'`，且日记内容冗余（含任务完成/未完成状态、逐条会话表）
+  - 所有统计查询排除 `paused` 状态（`status NOT IN ('running', 'paused')`），暂停会话不计入周/月/事项统计
+  - `DailyFocusRing` 客户端过滤也仅计 `completed`
+- **修复**:
+  - `useFocusTimer.pause()`: 计算 `elapsed = total - remaining`，将 `actual_sec` 传入 IPC
+  - `focus:pause` IPC handler: 接收 `actual_sec` 参数，UPDATE 写入 `actual_duration_sec`
+  - `preload.ts` + `electron.d.ts`: `focus.pause(id, actual_sec?)` 签名更新
+  - `DiaryService.generate()`:
+    - 查询条件改为 `status IN ('completed', 'paused')`，纳入暂停会话
+    - 按事项聚合时间分布（`subject_times` map），去重合并同事项
+    - 移除「任务状态」章节（已完成/未完成任务列表）
+    - 移除逐条会话表格，精简为「事项时间分布」
+  - 统计查询（5 处）: `status != 'running' AND status != 'paused'` / `NOT IN ('running', 'paused')` → `status != 'running'`
+  - `DailyFocusRing`: 客户端过滤加入 `status === 'paused'`
+
+### 关键文件变更索引
+| 模块 | 文件 |
+|------|------|
+| 暂停逻辑 | `src/hooks/useFocusTimer.ts` |
+| IPC 处理 | `electron/ipc/index.ts` |
+| Preload/类型 | `electron/preload.ts`, `src/types/electron.d.ts` |
+| 日记生成 | `electron/services/DiaryService.ts` |
+| 当日计时环 | `src/components/timer/DailyFocusRing.tsx` |
+
+### 项目现状
+- 提交记录：13 commits ahead of origin/main，待 push
+- 暂停即累积时间，日记内容精简为总时间+事项分布，统计全链路纳入暂停会话
+- GitHub 同步分支名已修复，核心功能稳定
