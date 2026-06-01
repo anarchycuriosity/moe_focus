@@ -2,7 +2,8 @@
 
 目前存在的问题：
 
-1：我想添加一个功能，在侧边栏的今日的那个界面我想添加一个模块来显示当天的计划专注时间和已经专注的时间，采用类似windows专注钟那样的环形圆圈时钟结构，圆圈中间显示每日计划专注的时间（可以实时修改，也可以在设置那里设置一个默认值，在今日界面设置了也会变成默认），当天累积了多少圆圈的边就会累积多少类似现在单次计时的显示效果。“今日”这个界面至此一共会有四个模块，待办事项和今日计划，单次计时和这次要添加的当天总计时。布局方面：计时相关的两个部分都放在右边：上面一个下面一个就好了。
+1:暂停功能异常，暂停之后计时仍然在继续。
+2：上一次commit的修复效果并不好，需要实现的效果应该是无论是暂停还是结束专注都会统计计时器的专注时间加入当天总时间的统计之中。把结束专注的功能改为重置时间，也就是此时这个计时器的专注时间不算。重置和暂停都不会跳出类似great job这样的反馈，只有计时器完整跑完才会。这种统计方式几乎完全参照Windows系统的clock的专注钟。
 
 ---
 
@@ -344,3 +345,37 @@
 - 提交记录：13 commits ahead of origin/main，待 push
 - 暂停即累积时间，日记内容精简为总时间+事项分布，统计全链路纳入暂停会话
 - GitHub 同步分支名已修复，核心功能稳定
+
+---
+
+## 2026-06-01 第四轮修复记录 (claude: Kurisu)
+
+### 已完成 (1 commit)
+
+**1. 暂停→完成会话 + 结束→重置 + 仅自然完成显示反馈** (`a2299ae`)
+- **需求**:
+  - 暂停功能异常，暂停之后计时仍然在继续
+  - 上一次 commit 的修复效果不好，需要实现 Windows Clock 风格的计时统计
+- **修复**:
+  - `useFocusTimer.pause()`: 改为调用 `focus:complete` 记录已用时间为 completed 会话，然后 `s.reset()` 回到 idle，无通知无反馈
+  - `useFocusTimer.stop()`: 改为调用 `focus:abandon(actual_sec=0)` 丢弃会话（不统计），然后 `s.reset()` 回到 idle
+  - `finish_phase()`: 保持不变，自然完成时显示 🎉 + "专注完成！" + 浏览器 Notification
+  - `TimerControls.tsx`: 移除 paused 阶段分支（暂停直接到 idle），"结束"按钮改为"重置"并绑定 on_reset，移除 on_resume/on_stop props
+  - `FocusTimer.tsx`: `is_active` 不再包含 `paused`，`stop` 作为 `on_reset` 传入 TimerControls
+  - 全部 5 个统计查询: `status != 'running'` → `status = 'completed'`，仅统计 completed 会话
+  - `DailyFocusRing.tsx`: filter 改为仅 `status === 'completed'`，phase 触发增加 `idle`（暂停后也刷新）
+  - `DiaryService.ts`: 查询改为 `status = 'completed'`
+
+### 关键文件变更索引
+| 模块 | 文件 |
+|------|------|
+| 计时器 Hook | `src/hooks/useFocusTimer.ts` |
+| 计时器 UI | `src/components/timer/TimerControls.tsx`, `FocusTimer.tsx` |
+| 统计查询 | `electron/ipc/index.ts` (5 处 stats handler) |
+| 日记生成 | `electron/services/DiaryService.ts` |
+| 当日计时环 | `src/components/timer/DailyFocusRing.tsx` |
+
+### 项目现状
+- 提交记录：14 commits ahead of origin/main，待 push
+- 暂停=完成会话计入统计，重置=丢弃不统计，仅自然完成显示反馈
+- 行为完全参照 Windows 系统 Clock 专注钟
