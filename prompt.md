@@ -408,3 +408,40 @@
 - 提交记录：15 commits ahead of origin/main，待 push
 - 暂停=完成会话计入统计+保持暂停态；继续=新会话+剩余时间；重置=废弃不统计
 - 仅自然完成显示 🎉 + 通知反馈
+
+---
+
+## 2026-06-01 第六轮修复记录 (claude: Kurisu)
+
+### 已完成 (1 commit)
+
+**1. 数据同步重写 — 语义合并替代 Git Pull** (`db3ed4b`)
+- **根因**: 原有同步完全依赖 `git pull`/`git push`，两台 PC 独立生成同一天日记后 pull 产生合并冲突，无合并策略；`SchedulerService` 自动同步 commit 后直接 push（不先 pull），push 被拒
+- **修复**:
+  - **新增 `SyncService`** (`electron/services/SyncService.ts`):
+    - `parse_diary(markdown)`: 解析日记 Markdown，提取总时间(session_count + total_minutes)、事项时间分布(`Map<subject → minutes`)、自我反思、首尾结构
+    - `merge_diaries(local, remote)`: 累加 total_minutes + session_count，合并 subject_times map（同名事项累加），保留 local 反思，输出合并后 Markdown
+    - 时间格式兼容 `"Xh Ym"`、`"X 小时 Y 分钟"` 等变体
+  - **`GitService.sync(branch)`** (新增):
+    - `git fetch origin` → 列出本地 `sums/*.md` → 逐文件 `git show origin/branch:sums/file.md` 取远程版 → `merge_diaries()` 合并 → 写回本地
+    - `git ls-tree origin/branch:sums/` 列出远程文件 → 仅远程存在的 checkout 到本地
+    - `git add sums/` + `git commit` + `git push`
+    - 返回摘要：`{ merged_files, new_from_remote, new_subjects, total_added_minutes }`
+  - **IPC/Preload/类型**: 新增 `git:sync` handler + `sync()` bridge + `SyncResult` 类型
+  - **`SettingsPage`**: GitHub 标签页新增「一键同步」primary 按钮，Pull/Commit/Push 降级为 ghost 高级操作
+  - **`SchedulerService`**: 自动同步改为调用 `sync()`，移除单独的 `diary.autoPush` 检查
+  - **`main.ts`**: 启动同步改为 `sync()` 替代 `pull()`
+
+### 关键文件变更索引
+| 模块 | 文件 |
+|------|------|
+| 同步服务 | `electron/services/SyncService.ts`(新), `GitService.ts` |
+| IPC/Preload | `electron/ipc/index.ts`, `electron/preload.ts` |
+| 类型声明 | `src/types/electron.d.ts` |
+| 设置页 | `src/pages/SettingsPage.tsx` |
+| 调度器/启动 | `electron/services/SchedulerService.ts`, `electron/main.ts` |
+
+### 项目现状
+- 提交记录：16 commits ahead of origin/main，待 push
+- 同步流程：fetch → 语义合并（累加时间+合并事项）→ commit → push
+- 暂停/继续/重置逻辑正常，核心功能稳定

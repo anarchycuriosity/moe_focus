@@ -2,9 +2,6 @@
 // 解析 sums/YYYY-MM-DD.md 中的时间数据，合并本地与远程版本
 // 总专注时间 + 事项时间分布按科目累加，自我反思保留本地
 
-import { readFileSync, readdirSync, writeFileSync, existsSync, mkdirSync } from 'fs'
-import { join } from 'path'
-
 interface DiaryTimeData
 {
   total_minutes: number
