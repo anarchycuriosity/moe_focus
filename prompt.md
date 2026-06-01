@@ -1,9 +1,8 @@
 我们正在做一个叫MoeFocus的日记+专注时间统计的专注钟，类似windows的专注钟但有一些新功能集成。我们现在主要先做moefocus文件夹下的桌面端部分，moefocus-mobile文件夹下的移动端先不管。修复记录的内容已经被修复了，现在部分模块已经比较稳定了，但有以下问题你需要修复。你对以下的每点内容都要分别提交，而不是改完所有才提交。**每次对话结束前必须按下方格式在本文末尾追加修复记录review，方便下次开新终端循环。**
 
-目前存在的问题：
+经过最新一次修改后目前存在的问题：
+1：暂停之后应该可以继续当前计时，但是现在的暂停就直接结束计时了。
 
-1:暂停功能异常，暂停之后计时仍然在继续。
-2：上一次commit的修复效果并不好，需要实现的效果应该是无论是暂停还是结束专注都会统计计时器的专注时间加入当天总时间的统计之中。把结束专注的功能改为重置时间，也就是此时这个计时器的专注时间不算。重置和暂停都不会跳出类似great job这样的反馈，只有计时器完整跑完才会。这种统计方式几乎完全参照Windows系统的clock的专注钟。
 
 ---
 
@@ -379,3 +378,33 @@
 - 提交记录：14 commits ahead of origin/main，待 push
 - 暂停=完成会话计入统计，重置=丢弃不统计，仅自然完成显示反馈
 - 行为完全参照 Windows 系统 Clock 专注钟
+
+---
+
+## 2026-06-01 第五轮修复记录 (claude: Kurisu)
+
+### 已完成 (1 commit)
+
+**1. 暂停后保持暂停态允许继续** (`577a093`)
+- **问题**: 第四轮将暂停改为直接回 idle，用户无法继续当前计时
+- **修复**:
+  - `useFocusStore`: 新增 `continue_session(session_id)` — 设置新的 session_id + phase='focus' + total_seconds=remaining_seconds，保留剩余时间继续倒计时
+  - `useFocusTimer.pause()`: 调用 `focus:complete` 完成当前会话(计入统计) → `s.pause_session()` 保持 paused 态
+  - `useFocusTimer.resume()`: 新增 — 调用 `focus:start` 创建新 DB 会话 → `s.continue_session()` 保留剩余时间 → 重启 interval
+  - `useFocusTimer.stop()`: 增加 `phase !== 'paused'` 守卫 — paused 时会话已被 pause 完成，不再覆盖
+  - `TimerControls`: 恢复 paused 分支（"继续"+"重置"）
+  - `FocusTimer`: `is_active` 恢复包含 `paused`，恢复 resume/stop destructure
+  - `DailyFocusRing`: phase 触发改为 `completed || paused`（暂停后也刷新）
+
+### 关键文件变更索引
+| 模块 | 文件 |
+|------|------|
+| 计时器 Store | `src/store/useFocusStore.ts` |
+| 计时器 Hook | `src/hooks/useFocusTimer.ts` |
+| 计时器 UI | `src/components/timer/TimerControls.tsx`, `FocusTimer.tsx` |
+| 当日计时环 | `src/components/timer/DailyFocusRing.tsx` |
+
+### 项目现状
+- 提交记录：15 commits ahead of origin/main，待 push
+- 暂停=完成会话计入统计+保持暂停态；继续=新会话+剩余时间；重置=废弃不统计
+- 仅自然完成显示 🎉 + 通知反馈
