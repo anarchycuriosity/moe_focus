@@ -34,13 +34,19 @@ export class GitService
     const entries = [
       '*.db',
       '*.db-wal',
-      '*.db-shm'
+      '*.db-shm',
+      'Cache/',
+      'Code Cache/',
+      'DawnCache/',
+      'GPUCache/',
+      'Local Storage/',
+      'Network/',
+      'Session Storage/',
+      'Shared Dictionary/',
+      'SharedStorage/',
+      'Local State',
+      'Preferences'
     ]
-
-    if (existsSync(gitignore_path))
-    {
-      return
-    }
 
     writeFileSync(gitignore_path, entries.join('\n') + '\n', 'utf-8')
   }
@@ -302,86 +308,81 @@ export class GitService
 
       const sums_dir = join(this.repo_path, 'sums')
       if (!existsSync(sums_dir)) mkdirSync(sums_dir, { recursive: true })
-      const local_files = readdirSync(sums_dir).filter((f) => f.endsWith('.md'))
 
-      for (const filename of local_files)
+      // Save all local diary content before aligning with remote
+      const local_snapshot = new Map<string, string>()
+      try
       {
-        const local_path = join(sums_dir, filename)
-        const local_content = readFileSync(local_path, 'utf-8')
+        const local_files = readdirSync(sums_dir).filter((f) => f.endsWith('.md'))
+        for (const f of local_files)
+        {
+          local_snapshot.set(f, readFileSync(join(sums_dir, f), 'utf-8'))
+        }
+      }
+      catch { /* sums/ may not exist */ }
 
-        let remote_content: string | null = null
-        try
+      // Align local branch with remote (handles unrelated histories + branch mismatch)
+      let remote_has_branch = false
+      try
+      {
+        await g.raw(['checkout', '-B', target, `origin/${target}`])
+        remote_has_branch = true
+      }
+      catch
+      {
+        // Remote branch doesn't exist yet (first push) — just ensure local branch exists
+        try { await g.raw(['checkout', '-B', target]) } catch { /* ok */ }
+      }
+
+      // Now working tree reflects remote state. Read current files (remote versions)
+      const current_files = new Map<string, string>()
+      try
+      {
+        for (const f of readdirSync(sums_dir).filter((f) => f.endsWith('.md')))
         {
-          remote_content = await g.show([`origin/${target}:sums/${filename}`])
+          current_files.set(f, readFileSync(join(sums_dir, f), 'utf-8'))
         }
-        catch
-        {
-          // File doesn't exist on remote
-        }
+      }
+      catch { /* sums/ may not exist */ }
+
+      // Merge local snapshot with current (remote) versions
+      for (const [filename, local_content] of local_snapshot)
+      {
+        const remote_content = current_files.get(filename)
 
         if (remote_content)
         {
           const merged = merge_diaries(local_content, remote_content)
-          if (merged && merged !== local_content)
+          if (merged && merged !== remote_content)
           {
-            writeFileSync(local_path, merged, 'utf-8')
+            writeFileSync(join(sums_dir, filename), merged, 'utf-8')
             result.merged_files.push(filename)
           }
         }
+        else
+        {
+          // Local-only file — write it
+          writeFileSync(join(sums_dir, filename), local_content, 'utf-8')
+          result.new_from_remote.push(filename) // reuse field: files pushed from local
+        }
       }
 
-      try
-      {
-        const tree_output = await g.raw(['ls-tree', '--name-only', `origin/${target}:sums/`])
-        const remote_files = tree_output
-          .split('\n')
-          .map((f) => f.trim())
-          .filter((f) => f.endsWith('.md'))
+      // Remote-only files are already on disk (from checkout), no action needed
 
-        for (const filename of remote_files)
-        {
-          const local_path = join(sums_dir, filename)
-          if (!existsSync(local_path))
-          {
-            try
-            {
-              const content = await g.show([`origin/${target}:sums/${filename}`])
-              writeFileSync(local_path, content, 'utf-8')
-              result.new_from_remote.push(filename)
-            }
-            catch
-            {
-              // Skip if can't read
-            }
-          }
-        }
-      }
-      catch
+      // Stage and commit
+      this.ensure_gitignore()
+      await g.add(['sums/', '.gitignore'])
+
+      const status = await g.status()
+      if (status.files.length > 0)
       {
-        // sums/ may not exist on remote yet
+        await g.commit('sync: merge diary data')
       }
 
-      const has_changes = result.merged_files.length > 0 || result.new_from_remote.length > 0
-      if (has_changes)
+      // Push (only if remote branch exists or we have commits to push)
+      if (remote_has_branch || status.files.length > 0)
       {
-        await g.add(['sums/'])
-        const status = await g.status()
-        if (status.files.length > 0)
-        {
-          await g.commit('sync: merge diary data')
-          await g.push('origin', target)
-        }
-      }
-      else
-      {
-        try
-        {
-          await g.push('origin', target)
-        }
-        catch
-        {
-          // May fail if nothing to push
-        }
+        await g.push('origin', target)
       }
 
       result.success = true
