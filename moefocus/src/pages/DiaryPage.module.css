@@ -113,28 +113,6 @@
   background: rgba(255, 183, 197, 0.15);
 }
 
-.delete_btn {
-  width: 24px;
-  height: 24px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-size: 14px;
-  color: var(--moe-text-light);
-  border-radius: 4px;
-  opacity: 0;
-  transition: all var(--moe-transition);
-}
-
-.date_row:hover .delete_btn {
-  opacity: 1;
-}
-
-.delete_btn:hover {
-  color: #FF6B6B;
-  background: rgba(255, 107, 107, 0.1);
-}
-
 /* ===== Main image frame ===== */
 .main {
   flex: 1;

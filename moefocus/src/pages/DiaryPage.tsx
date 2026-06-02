@@ -130,12 +130,6 @@ export function DiaryPage(): JSX.Element
     }
   }
 
-  const handle_delete = async (d: string) =>
-  {
-    await window.electronAPI.diary.delete_entry(d)
-    set_entries((prev) => prev.filter((e) => e.date !== d))
-  }
-
   const handle_generate = async () =>
   {
     const result = await window.electronAPI.diary.generate(target_date)
@@ -202,13 +196,6 @@ export function DiaryPage(): JSX.Element
                       title="用 Typora 打开"
                     >
                       📝
-                    </button>
-                    <button
-                      className={styles.delete_btn}
-                      onClick={() => handle_delete(e.date)}
-                      title="删除日记"
-                    >
-                      ×
                     </button>
                   </div>
                 ))}
