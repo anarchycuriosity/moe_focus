@@ -1,213 +1,244 @@
-# MoeFocus 问题修复经验总结
+# MoeFocus 后端开发学习路线图
 
-## 本次修复概览 (2026-05-31)
+## 关于这篇文档
 
-修复了 MoeFocus 桌面端 7 个问题，涉及前端状态管理、IPC 通信、SQL 查询、CSS 样式、图表组件重写等多个层面。
+这篇文档不是传统意义上的"项目经验总结"，而是一份**面向后端初学者的学习路线图**。
 
-## 关键技术要点
+MoeFocus 表面上是一个 Electron + React 的桌面应用，但它的核心架构——数据库设计、IPC 通信、数据同步、Git 操作、安装部署——全部是后端开发的核心技能。你在修复这个项目的 bug 的过程中，实际上已经触及了后端开发的每一个关键领域。
 
-### 1. 数据流完整性检查
-
-设置功能的经典陷阱：写入端正常工作，但读取端没有消费数据。
-
-- **教训**：每添加一个设置项，必须同时确认 (a) 写入到了哪里 (b) 谁在什么时候读取它 (c) 是否有默认值 fallback
-- **模式**：`SettingsPage(写) → DB → SessionConfig(读) → Store(应用)` 的完整链路
-- **调试技巧**：在关键节点打 `console.log` 追踪数据流
-
-### 2. SQL 语法警觉
-
-在 `focus:complete` 中发现了 `SET status != 'running'` 的 bug：
-- `!=` 是比较运算符，`=` 才是赋值
-- `SET a != b AND c != d` 会被解析为布尔表达式而非赋值
-- 这类 bug 的隐蔽性在于 SQLite 不会报语法错误，只是静默地不更新数据
-
-### 3. CSS 简写属性的覆盖陷阱
-
-`background: gradient(...)` 与 `background-image: url(...)` 的冲突：
-- `background` 简写会重置所有 `background-*` 长写属性
-- 即使内联样式设置了 `backgroundImage`，如果 CSS 规则中使用 `background` 简写可能在特定时机覆盖
-- **规则**：设置默认背景图时使用 `background-image` 而非 `background`
-
-### 4. 过时 API 的渐进迁移
-
-Electron 从 `protocol.registerFileProtocol` 迁移到 `protocol.handle`：
-- `registerFileProtocol(callback)` → `protocol.handle(() => net.fetch())`
-- 新 API 使用标准的 Response 对象，与 Web 标准对齐
-- 迁移时注意路径格式：`file:///C:/path` (Windows) vs `file:///path` (Unix)
-
-### 5. Recharts 堆叠柱状图的数据准备
-
-堆叠柱状图的关键约束：
-- 每条 Bar 需要 `stackId` 相同才能堆叠
-- 数据结构需要展平：每个 category（事项）作为独立的 dataKey
-- 颜色一致性：同一 subject 在所有柱子上必须使用相同颜色 → 需要预建 subject→color 映射表
-- 月统计的合并逻辑：同名 subject → 累加秒数 → 在图表层合并而非 SQL 层
-
-### 6. Glassmorphism 设计原则
-
-毛玻璃效果不是简单降低透明度：
-- `backdrop-filter: blur()` + `saturate()` 是关键
-- 不透明度 0.45-0.55 是文字可读性与壁纸可见性的平衡点
-- blur 值 10-14px 提供足够的模糊度
-- `saturate(150-180%)` 补偿 blur 导致的色彩变灰
-- 半透明白色边框 `rgba(255,255,255,0.35)` 提供微妙的边界感
-
-## 项目架构认知
-
-- **状态管理**：Zustand store 是单一真相来源，设置默认值的加载应在组件 mount 时完成
-- **IPC 模式**：preload.ts 暴露类型安全的 API → ipc/index.ts 注册 handler → Service 层处理业务逻辑
-- **Recharts**：适合中等复杂度的图表需求，堆叠柱状图需要前端数据转换
-- **CSS Modules**：每个组件的样式隔离良好，全局主题变量在 `global.css` 中定义
+下面按学习路径组织这些知识点，从基础到进阶。
 
 ---
 
-## 第四轮修复 (2026-05-31)
+## 第一阶段：数据与状态（文档 01/02/03/12）
 
-### 7. npm 包安装成功 ≠ 应用可运行
+### 你会学到什么
 
-Electron 的 npm 包和 Electron 二进制文件是分离的：
-- npm 包通过 registry 下载（npm mirror 已覆盖）
-- 二进制文件通过 `@electron/get` 从 GitHub Releases 下载（需要单独的 `ELECTRON_MIRROR` 环境变量）
-- postinstall 脚本失败可能不阻断 `npm install` 返回 0
+这是后端开发最基础也最重要的一层：如何存储数据、如何查询数据、如何保证数据一致性。
 
-**教训**：
-- `.npmrc` 的 `registry` 镜像 ≠ Electron 二进制镜像，国内环境需要两层镜像
-- `npm_config_*` 透传机制：`.npmrc` 的 key 会被转为 `npm_config_<key>` 环境变量，但 `electron_mirror` 不是 npm 的内置 key，会产生 warning
-- 环境变量 `ELECTRON_MIRROR` 是 `@electron/get` 的一级读取源，比 npm config 透传更可靠
-- **安装脚本必须做验证而非盲信**：`npm install` 返回 0 后应检查关键文件是否存在
+### 知识图谱
 
-**调试技巧**：
-- `DEBUG=* node node_modules/electron/install.js` 可以观察 `@electron/get` 的完整下载/缓存/解压流程
-- `extract-zip` 在跨文件系统（WSL2→NTFS）场景性能极差，模拟测试时要注意环境差异
+```
+数据流闭环 (01)
+  ├─ 写入端、传输路径、读取端、读取时机 — 缺一不可
+  ├─ Electron 双进程架构 — 主进程(Main) vs 渲染进程(Renderer)
+  ├─ IPC 通信 — ipcMain.handle + ipcRenderer.invoke
+  ├─ 状态持久化 — 内存层(Zustand) + 持久层(SQLite)
+  └─ React 副作用 — useEffect 的三种依赖模式
 
-### 8. 暗色模式 CSS 的铁律：永不硬编码背景色
+状态机 (02)
+  ├─ 有限状态机(FSM) — 状态 + 事件 → 新状态
+  ├─ 状态转换图 — 在写代码之前先画图
+  └─ 经典实例 — TCP 11 种状态、自动售货机
 
-`select` 和 `time_input` 硬编码 `background: white`，暗色模式下浅色文字（`#E8E4F0`）在白底上对比度接近零。
+SQL 聚合与查询 (03)
+  ├─ GROUP BY — 分组粒度决定信息密度
+  ├─ JOIN — INNER/LEFT/RIGHT/FULL，LEFT JOIN 更安全
+  ├─ COALESCE — 处理 NULL 的标准方式
+  ├─ 数据转换管道 — 长格式 → Pivot → 宽格式
+  └─ SQLite 聚合算法 — Hash Aggregation vs Sort Aggregation
 
-**核心原则**：
-- 所有背景色用主题 CSS 变量（`var(--moe-glass-*)`），让暗/亮模式自动切换
-- 亮色特殊需求通过 `[data-theme]` 选择器覆盖，而非反过来
-- `color-scheme: dark/light` 不仅影响 CSS，还控制浏览器原生控件（下拉菜单、日历选择器等）的渲染主题
-- 毛玻璃背景上文字对比度需要比纯色背景高一档——底层壁纸的亮度和色相不可预测，需要安全边际
-- 区分信息层级用 `opacity` 而非不同颜色变量：同一色相 + 不同透明度 = 和谐层级；不同色相 = 视觉碎片化
+数据库关系与级联 (12)
+  ├─ 外键与参照完整性 — CASCADE/SET NULL/RESTRICT
+  ├─ 隐式关系 vs 显式约束 — 什么时候不需要外键
+  ├─ 应用层级联 — 灵活但需要手动保证一致性
+  ├─ changes() — 获取上条 DML 影响的行数
+  └─ 子查询清理孤儿数据 — WHERE NOT IN (SELECT ...)
+```
 
----
+### 前置课程建议
 
-## 第五轮修复 (2026-05-31)
+如果你对这些概念感到陌生，建议先学习：
+- **数据库系统概论**：关系模型、SQL 基础、范式理论
+- **计算机程序的构造和解释 (SICP)** 前三章：状态、环境模型
 
-### 9. 绕过中间库，直接下载二进制
+### 项目作业
 
-`@electron/get` 作为中间库增加了一层不确定性：镜像 URL 格式、SHA256 校验、网络超时重试均由库控制。当镜像下载失败时，无法判断是镜像源问题还是库的兼容性问题。
-
-**教训**：
-- Electron 的 npm 包和二进制完全解耦——npm 包走 registry，二进制走 GitHub Releases。设置 `ELECTRON_MIRROR` 只影响后者
-- `@electron/get` 的 postinstall 失败不阻断 `npm install`，导致 `node_modules` 装好但 `electron.exe` 缺失的半成品状态
-- **直接 HTTP 下载 zip 比依赖 postinstall 更可控**：一个 `Invoke-WebRequest` + `Expand-Archive` 解决问题
-- 双 URL 兜底是网络不可靠环境的标配：npmmirror（国内快） → GitHub（稳定备用）
-- 版本号必须从 `node_modules/electron/package.json` 读取确切版本，而非解析语义版本范围
-
-**cmd 语法陷阱**：
-- `&` 在 cmd 中是命令分隔符，`echo ... download & extraction` 会被拆成两条命令
-- 嵌入 PowerShell 命令到 bat 文件时，管道符 `|` 在 cmd 双引号内仍保持特殊含义，必须用 `^|` 转义
-
----
-
-## 第六轮修复 (2026-05-31)
-
-### 10. 绕过 postinstall 不只是跳过下载，还需要复现其副作用
-
-electron 包的 `install.js`（postinstall）做了三件事：**下载 zip → 解压到 dist/ → 写入 path.txt**。我们绕过它直接下载解压，遗漏了最关键的一步——`path.txt`。
-
-**根因**：`electron-vite` 不依赖 `electron.exe` 是否存在，而是读取 `node_modules/electron/path.txt` 来定位可执行文件。这个隐蔽的间接层导致"二进制文件明明存在，但 electron-vite 报 Electron uninstall"。
-
-**教训**：
-- 绕过一个模块的安装脚本时，必须逆向理解该脚本的**全部副作用**，不仅仅是主要操作
-- `path.txt` 是一个元数据文件，内容只有一行（如 `electron.exe`），但它是一个隐式契约——electron-vite、electron-builder 等工具链都依赖它
-- **`Out-File -NoNewline` 至关重要**：`path.txt` 末尾的 `\n` 会被拼入路径，导致 `electron.exe\n` 找不到文件
-- 验证方法：`xxd` 或 `Format-Hex` 检查尾部字节，确保无 `0d 0a` 或 `0a`
-
-**调试技巧**：
-- electron-vite 源码在 `node_modules/electron-vite/dist/chunks/lib-BmEkZIgk.mjs`，`getElectronPath()` 函数只有 ~20 行，直接阅读即可定位问题
-- 模拟克隆环境是发现这类问题的唯一手段——当前开发环境的 postinstall 曾经成功过（残留了 path.txt），不会触发 bug
-- 每次修改安装脚本后，必须在干净的克隆环境（无 node_modules、无缓存）中完整测试一次
+| 作业 | 对应文档 | 练习重点 |
+|------|---------|---------|
+| 配置管理系统 | 01 | 数据流闭环、SQLite CRUD、IPC 模拟 |
+| 自动售货机状态机 | 02 | 状态转换表、边界条件覆盖 |
+| 销售数据聚合系统 | 03 | GROUP BY、JOIN、Pivot 转换 |
+| 博客删除策略 | 12 | 外键、级联操作、应用层 vs 数据库层 |
 
 ---
 
-## 第七轮修复 (2026-05-31)
+## 第二阶段：进程架构与模块工程（文档 04/08/10/11）
 
-### 11. 级联删除：数据库操作不是孤立的事务
+### 你会学到什么
 
-删除日记时只删 `diary_entries` 行，同日期 `focus_sessions` 和 `sums/` 文件原封不动。统计查询只看 `focus_sessions` 表，与 `diary_entries` 无 JOIN — 所以删除日记后图表数据不变。
+真实世界的软件不是"写好代码就行"——它需要被安装、被部署、被其他工具理解。这个阶段覆盖了从 npm 生态到安装脚本工程化的所有知识。
 
-**根因**：两个表仅通过共享 `date` 字段隐式关联，没有外键约束，更没有级联删除语义。`DELETE FROM diary_entries` 不会触发任何副作用。
+### 知识图谱
 
-**思维出发点**：当两个实体通过业务逻辑关联（而非数据库外键），删除操作需要手动梳理级联范围：
-- `focus_sessions` → 应该删除（专注数据是日记的组成部分）
-- `todo_items` → 不应删除（待办事项是独立的任务规划，日期只是时间属性）
-- `sums/YYYY-MM-DD.md` → 应该删除（磁盘文件是数据库内容的投影）
+```
+Electron 安全模型 (04)
+  ├─ 双进程隔离 — 最小权限原则
+  ├─ contextBridge — 白名单式 API 暴露
+  ├─ 自定义协议(protocol.handle) — 受控的本地文件访问
+  ├─ CSS 简写陷阱 — background 简写重置子属性
+  └─ Fallback 链 — 首选 → 降级 → 兜底
 
-**教训**：
-- 数据库操作不等于业务操作 — `DELETE FROM diary_entries` 只是第一步，还需要级联清理关联数据和磁盘文件
-- 不依赖于用户手动比对 + 按钮 — 级联删除在 `diary:deleteEntry` 中一步到位，用户感知是「删了日记统计就少」
-- `stats:syncCleanup` 作为兜底 — 处理历史残留的孤儿数据（在级联删除实现之前产生的），之后理论上不再产生
-- **`refresh_trigger` 模式**：子组件用 `useEffect([dep, refresh_trigger])` 而非 `key` 强制重挂载，既触发刷新又不闪烁
+npm 生态系统 (08)
+  ├─ npm install 四步骤 — 解析→下载→生命周期→lock
+  ├─ npm 包 ≠ 二进制文件 — 两套下载链路
+  ├─ @electron/get — 镜像查找顺序
+  ├─ 缓存导致"我机器上能跑" — 开发环境 vs 克隆环境
+  └─ postinstall 失败不阻断 — npm 的设计哲学
 
-**调试技巧**：
-- `SELECT changes()` 是 SQLite 的内置函数，返回上一条 DML 语句影响的行数，非常适合返回给前端做 toast 消息
-- TypeScript 类型声明与实际 preload API 不同步是常见坑 — 补 `sync_cleanup` 时顺便修了 `get_weekly_breakdown`/`get_monthly_breakdown` 的缺失声明
+HTTP 直接下载 (10)
+  ├─ 绕过中间库 — 当黑盒逻辑不可靠时直接控制
+  ├─ Invoke-WebRequest + Expand-Archive — 两个操作替代整个库
+  ├─ 版本号精确读取 — 语义版本范围 vs 确切版本
+  ├─ 双 URL 兜底 — Failover Chain 模式
+  └─ cmd 语法陷阱 — & 命令分隔符、| 管道符转义
+
+模块契约 (11)
+  ├─ 隐性约定 — API 之外的依赖关系
+  ├─ 绕过脚本前的逆向分析 — 理清全部副作用
+  ├─ path.txt — 元数据文件是隐式契约
+  └─ -NoNewline — 机器读取 vs 人类读取
+```
+
+### 前置课程建议
+
+- **计算机系统工程**：进程、文件系统、shell 脚本
+- **软件工程导论**：依赖管理、构建系统、部署
+
+### 项目作业
+
+| 作业 | 对应文档 | 练习重点 |
+|------|---------|---------|
+| 设计系统 + 主题切换 | 04/07 | CSS 变量、主题架构 |
+| 跨平台安装脚本 | 08/10/11 | npm/postinstall、HTTP 下载、验证与降级 |
 
 ---
 
-## 第八轮修复 (2026-06-02)
+## 第三阶段：分布式数据同步（文档 13/14/15）
 
-### 12. git checkout -B 不是无副作用的"对齐"操作
+### 你会学到什么
 
-`git checkout -B <branch> origin/<branch>` 在语义上 = `git branch -f <branch> origin/<branch> && git checkout <branch>`。问题出在 checkout 这步：**若工作区存在已追踪文件的未提交修改，git 会拒绝覆盖这些脏文件**，checkout 直接失败。
+这是整个项目中后端浓度最高的部分。分布式数据同步是后端开发的终极挑战之一：多个节点独立产生数据，需要在不依赖中心化协调器的情况下达成一致。
 
-在 MoeFocus 的同步场景中，`SchedulerService` 或 `DiaryService.generate()` 会定时刷新 `sums/*.md`，这些文件在前一次 sync 中被 commit+pushed，成为追踪文件。当前的修改使它们变成"脏文件"→ 下次 sync 的 checkout -B 试图用远程版本覆盖它们 → git 拒绝 → catch 块静默吞错 → 远程数据从未被拉取。
+### 知识图谱
 
-**思维出发点**：面对"对齐本地到远程"的需求时，第一个想到的可能是 checkout/reset，但这类操作修改工作区，必然与本地未提交修改冲突。**正确的思路是"不修改工作区就读到远程文件"**——`git show origin/<branch>:<path>` 能直接输出远程文件内容，完全绕开工作区冲突。
+```
+Git 对象模型 (13)
+  ├─ 三棵树 — 工作区/暂存区/仓库
+  ├─ checkout vs checkout -B — Git 保护脏文件的机制
+  ├─ git show — 直接从对象库读取，不碰工作区
+  ├─ 竞态条件 — 定时刷新 + 手动同步并发
+  └─ 静默吞错 — 最危险的错误处理模式
 
-**教训**：
-- `git checkout -B` 在有脏文件时会失败，不是万能的强制对齐
-- catch 块不能静默吞错——至少应该记录 `console.error` 以便诊断
-- `git ls-remote origin <branch>` 判断远程分支是否存在，比 try-catch `checkout` 更可靠
-- `git ls-tree -r --name-only origin/<branch>:<subdir>/` 可以列出远程目录文件
-- `git show origin/<branch>:<subdir>/<file>` 可以逐文件读取远程内容
-- 整个新 sync 流程完全不触碰工作区 git 状态，脏文件不再是问题
+UUID 去重 (14)
+  ├─ 源数据 vs 派生数据 — 同步源数据才能保证一致性
+  ├─ UUID v4 — 122 位随机数 + 6 位标记
+  ├─ UUID-keyed JSON — { uuid: data } 天然无冲突
+  ├─ INSERT OR IGNORE — 数据库层幂等导入
+  ├─ CRDT-like Merge — 利用唯一性消除冲突
+  └─ 六步编排 — export→fetch→show→merge→push→import
 
-**调试技巧**：
-- 复现 PC2 同步失败：准备两台电脑，PC1 产生新日记并同步 → PC2 自动生成同日日记后点击同步 → 观察 remote 数据是否到达本地
-- 检查 git 工作区状态：`git status` 看 `sums/*.md` 是否有未提交修改
-- 验证 checkout -B 失败场景：在有脏追踪文件的仓库执行 `git checkout -B main origin/main`
+仓库初始化 (15)
+  ├─ .git 目录 — 仓库 = 包含 .git 的普通文件夹
+  ├─ checkIsRepo() 向上递归 — 集合包含 ≠ 精确匹配
+  ├─ 父目录 .git 隐患 — 所有 Git 操作在错误仓库中执行
+  ├─ --initial-branch — master/main 分支名对齐
+  └─ 静默错误链 — 最隐蔽的 bug 模式
+```
+
+### 前置课程建议
+
+- **分布式系统原理**：CAP 定理、最终一致性、冲突解决
+- **Git 内部原理**：对象模型、引用、传输协议
+
+### 项目作业
+
+| 作业 | 对应文档 | 练习重点 |
+|------|---------|---------|
+| 多节点数据同步系统 | 13/14/15 | Git 操作、UUID 去重、冲突合并、幂等导入 |
 
 ---
 
-### 13. 跨 PC 数据同步需要双向数据流，不是单向导出
+## 第四阶段：主题系统与设计架构（文档 07/09）
 
-同步 `sums/*.md` 日记文件只是把**输出**传到了另一台 PC，源数据 `focus_sessions` 表从未参与同步。统计图表查询的是源数据，所以即使日记文件正确同步，另一台 PC 的图表也不会反映远程会话。
+### 你会学到什么
 
-**思维出发点**：当需要多节点数据一致性时，必须区分**源数据**（`focus_sessions` 表）和**派生数据**（`sums/*.md` 文件）。同步派生数据只能让展示层一致，不能让统计层一致——因为统计需要源数据的每条记录，而不是汇总结果。
+虽然主题系统本质上是前端技术，但其核心思想——配置与代码分离、变量集中管理、降级策略——与后端开发的配置管理、12-Factor App 原则一脉相承。
 
-**去重是分布式同步的核心难题**：多台 PC 独立产生数据，简单累加会导致同一条会话被重复计数。解决方法是给每条记录分配**全局唯一标识符 (UUID)**，合并时按 UUID 取并集，导入时用 `INSERT OR IGNORE` 跳过已存在的 UUID。
+### 知识图谱
 
-**教训**：
-- UUID 是去重的基石——`crypto.randomUUID()` 在 Node 和浏览器中均可用
-- JSON 以 UUID 为 key 的对象结构天然无冲突：`{ uuid: data }` 的浅合并就是取并集
-- `INSERT OR IGNORE` 依赖 UNIQUE 约束——没有 UNIQUE 就不会触发 IGNORE
-- 导出 → 文件合并 → 导入 的三段式比直接在 DB 层 merge 更解耦、更易调试
-- 导入后必须重建派生数据（`DiaryService.generate()`），否则日记文件与数据库不一致
-- export 必须走在 sync 之前——先把本地最新数据写入 JSON，再拉取远程进行合并
+```
+设计系统 (07)
+  ├─ CSS 变量 = 配置中心 — 定义一次，全局引用
+  ├─ backdrop-filter — blur(14px) saturate(160%)
+  ├─ Glassmorphism 参数平衡 — 透明度/blur/饱和度
+  └─ saturate 补偿 — 低通滤波的色彩损失
 
-### 14. checkIsRepo() 向上递归是隐式陷阱
+主题系统 (09)
+  ├─ 永不硬编码背景色/文字色 — 用 CSS 变量替代
+  ├─ color-scheme — 影响浏览器原生控件主题
+  ├─ 毛玻璃对比度 — 壁纸穿透需要安全边际
+  └─ opacity 区分层级 — 同色相 + 不同透明度
+```
 
-`simple-git` 的 `checkIsRepo()` 默认会沿目录树向上查找 `.git`（类似 `git rev-parse --show-toplevel`），而不是判断「给定目录本身是否是 git 仓库」。当父目录（如用户主目录 `C:\Users\<user>`）存在 `.git` 时，`checkIsRepo()` 永远返回 `true`，`git init` 永远不会在目标目录创建仓库。
+---
 
-**思维出发点**：「在仓库里」和「这个目录是仓库」是两个不同的问题。前者是集合成员检测（包容性），后者是精确匹配。git 工具链的默认语义是前者——它假设你想知道「我是否在 git 的管理范围内」。
+## 技能矩阵
 
-**教训**：
-- 检测「目录 X 是否有 .git」的正确方法是 `existsSync(join(X, '.git'))`，而不是 `checkIsRepo()`
-- simple-git 的 `baseDir` / `root` 配置不影响 `checkIsRepo()` 的递归行为
-- 这个 bug 的隐蔽性在于：所有 git 操作都"成功"（commit/push/pull 不报错），只是操作在错误的仓库中执行
-- 排查方法：直接检查目标目录是否有 `.git` 文件夹，而不是依赖工具报告
-- `--initial-branch=main` 是 `git init` 的最佳实践，避免 `master`/`main` 的历史遗留问题
+完成所有学习后，你应该掌握以下技能：
+
+| 技能领域 | 具体能力 | 熟练度 |
+|---------|---------|--------|
+| SQL | SELECT/JOIN/GROUP BY/子查询/外键/级联 | 能独立设计多表关联的数据库 |
+| 状态管理 | 状态机建模/Zustand/React Hooks | 能用状态机思维设计复杂交互 |
+| Electron | 双进程架构/IPC/自定义协议/安全模型 | 理解桌面应用的安全设计原则 |
+| Git | 对象模型/checkout/show/ls-tree/fetch/push | 能编写自动化 Git 操作脚本 |
+| 分布式同步 | UUID/幂等/CRDT-like Merge/源vs派生 | 能设计简单的多节点数据同步方案 |
+| 工程化 | npm 生态/安装脚本/版本管理/错误处理 | 能编写健壮的跨平台安装脚本 |
+| 调试 | 数据流追踪/静默错误排查/日志分析 | 能定位跨越多个模块的复杂 bug |
+
+---
+
+## 推荐阅读顺序
+
+如果你只有有限的时间，按这个顺序阅读文档：
+
+```
+入门必读：
+  01 → 02 → 03      (数据基础：状态、SQL、数据流)
+  08 → 10 → 11      (工程基础：npm、安装、模块契约)
+
+进阶必读：
+  12                 (数据库关系与级联)
+  13 → 14 → 15      (分布式同步：这是后端精华)
+
+按需阅读：
+  04 → 06            (Electron 安全模型与文件系统)
+  07 → 09            (设计系统与主题架构)
+```
+
+---
+
+## 延伸学习资源
+
+以下是完成 MoeFocus 学习后推荐的下一步学习方向：
+
+### 如果你对数据库感兴趣
+- **《数据库系统概念》(Database System Concepts)** — 关系代数、索引、事务、并发控制
+- **SQLite 源码阅读** — 世界上最广泛部署的数据库引擎，单文件 ~250K 行 C 代码
+- **PostgreSQL 内部机制** — MVCC、查询优化器、WAL
+
+### 如果你对分布式系统感兴趣
+- **《数据密集型应用系统设计》(Designing Data-Intensive Applications, DDIA)** — 必读
+- **CRDT 论文** — "A Comprehensive Study of Convergent and Commutative Replicated Data Types"
+- **Git 内部原理** — Pro Git 第十章 "Git Internals"
+
+### 如果你对系统编程感兴趣
+- **《深入理解计算机系统》(Computer Systems: A Programmer's Perspective, CSAPP)** — 必读
+- **Linux 内核源码** — 进程管理、内存管理、文件系统
+- **Chromium 源码** — 沙盒机制、IPC (Mojo)、渲染引擎
+
+---
+
+*最后更新: 2026-06-02*
+*本文档随 MoeFocus 项目演进而持续更新*

@@ -527,4 +527,25 @@
 - 同步完整流程：export JSON → fetch → ls-remote 判断远程分支 → ls-tree + git show 逐文件读远程 → .md语义合并 + .json UUID合并 → 分支名对齐 → commit + push → import sessions → 重建日记 → sync diary_entries
 - 四个根因全部修复：(1) checkout -B 脏文件静默失败 (2) focus_sessions 从未同步 (3) git 仓库初始化在错误目录 (4) diary_entries 不随 sync 更新
 - 远程数据仓库 `moe_focus_data` 已验证：push/clone/merge 全流程通过
-- **下一步**: 需要重启应用 (`npm run dev`) 使新代码生效，然后在设置页配置 GitHub 远程仓库地址后点击「一键同步」
+**5. sql.js 不支持 ALTER TABLE ADD COLUMN ... UNIQUE** (`08372ba`)
+- **根因**: sql.js(Emscripten编译的SQLite)的 `ALTER TABLE` 不支持添加带 `UNIQUE` 约束的列，抛出 `"Cannot add a UNIQUE column"` 错误。uuid 迁移每次启动都在 try-catch 中静默失败，`uuid` 列从未被添加到已有数据库。
+- **修复**:
+  - `ALTER TABLE focus_sessions ADD COLUMN uuid TEXT` — 先加纯文本列
+  - `CREATE UNIQUE INDEX IF NOT EXISTS idx_focus_uuid ON focus_sessions(uuid)` — 单独建唯一索引
+  - 迁移幂等性：`pragma_table_info` 检查列是否存在 + `pragma_index_list` 检查索引是否存在
+
+### 关键文件变更索引
+| 模块 | 文件 |
+|------|------|
+| Git 同步 | `electron/services/GitService.ts` (3 轮修改) |
+| 会话同步 | `electron/services/SyncService.ts` (2 轮修改) |
+| 数据库 | `electron/database/schema.sql`, `electron/services/DatabaseService.ts` (2 轮修改) |
+| IPC | `electron/ipc/index.ts` (2 轮修改) |
+| 启动入口 | `electron/main.ts` |
+| UI | `src/pages/DiaryPage.tsx`, `DiaryPage.module.css` |
+| 类型声明 | `src/types/electron.d.ts` |
+
+### 项目现状
+- 提交记录：23 commits ahead of origin/main，待 push
+- **当前数据库已手动修复**: 5 条 focus_sessions + 7 天 diary_entries + uuid 列/索引就绪
+- **下一步**: 重启应用 (`npm run dev`) 使新代码生效。启动时迁移会自动运行，之后点击「一键同步」即可正常工作

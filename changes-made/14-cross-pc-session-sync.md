@@ -1,91 +1,229 @@
-# 14: 跨 PC 统计数据同步 —— focus_sessions JSON 导出/合并/导入
+# 14 — 分布式数据同步：UUID 去重与 JSON 导出/合并/导入
 
-## 问题
+## 问题现象
 
-即使 `sums/*.md` 日记文件正确同步，统计数据（周/月图表、每日计时环）仍只显示本机数据。因为统计图表查询的是 `focus_sessions` SQLite 表，而该表是本地私有的（`.gitignore` 排除 `*.db`），从未在 PC 间同步。
+即使 13 号文档修复了 Git 同步流程，日记文件（`sums/*.md`）可以在 PC 间正确同步，但统计图表仍然只显示本机数据。PC① 记了 5 小时数学，PC② 记了 3 小时英语，同步后 PC② 应该显示总共 8 小时——但实际只显示 3 小时。
 
-## 根因
+## 一、前置知识
 
-数据流向是单向的：`focus_sessions (SQLite)` → `DiaryService.generate()` → `sums/*.md` → `git push`。同步只传输末端的 `.md` 输出，源数据 `focus_sessions` 从未传播到其他 PC。
+### 1.1 源数据 vs 派生数据：同步链条中最容易被忽视的区别
 
-这意味着即使 PC2 拉取了 PC1 的日记文件，PC2 的本地统计也不会包含 PC1 的会话数据。
-
-## 思维出发点
-
-要在 PC 间共享统计数据，需要**双向数据流**：
+这是整个同步系统设计中最核心的概念区分：
 
 ```
-PC1 focus_sessions → JSON → git push → PC2 git pull → JSON → PC2 focus_sessions
-PC2 focus_sessions → JSON → git push → PC1 git pull → JSON → PC1 focus_sessions
+源数据 (Source of Truth)
+  focus_sessions 表 (SQLite)
+  │ 每一行 = 一次专注会话的完整记录
+  │ 包含: 开始时间、结束时间、实际时长、事项名称、UUID
+  │
+  │  DiaryService.generate()  派生过程
+  ▼
+派生数据 (Derived Data)
+  sums/2026-06-01.md (Markdown 文件)
+  │ 从源数据计算得出
+  │ 包含: 总专注时间、事项时间分布、会话数
+  │ 是"快照"而非"真相"
 ```
 
-核心挑战是**去重**：同一会话不能因为在两台 PC 间来回同步而被重复计数。解决方案是为每条会话分配**全局唯一标识符 (UUID)**，合并时按 UUID 取并集。
+**关键认知**：同步派生数据 ≠ 同步源数据。
 
-## 修复方案
+```
+错误的同步策略:
+  PC① focus_sessions → sums/*.md → git push → PC② git pull → sums/*.md
+  PC② 的统计图表查询的是 PC② 的 focus_sessions 表
+  → 同步了 sums，但没有更新 PC② 的源数据
+  → 统计图表不变 ✗
 
-### 1. 全局会话标识 (UUID)
+正确的同步策略:
+  PC① focus_sessions → data/focus_sessions.json → git push
+  → PC② git pull → data/focus_sessions.json → INSERT INTO PC②.focus_sessions
+  → PC② 的统计图表查询 PC② 的 focus_sessions 表（现在包含 PC① 的数据了）
+  → 统计图表正确 ✓
+```
 
-- `focus_sessions` 新增 `uuid TEXT UNIQUE` 列
-- 每次 `focus:start` 自动生成 UUID（`crypto.randomUUID()`）
-- 数据库迁移自动给历史会话补充 UUID
+**类比**：你有一本账本（源数据：focus_sessions），每月生成一份财务报表（派生数据：sums/*.md）。把报表传真给另一个办公室不意味着他们的账本也更新了——他们需要在账本上逐笔记账（导入源数据）。
 
-### 2. JSON 导出 (`export_sessions_from_db`)
+### 1.2 UUID：分布式系统中去重的基石
 
-同步前将所有 completed 会话导出为 `data/focus_sessions.json`：
+UUID（Universally Unique Identifier，通用唯一标识符）是一个 128 位的数字，其值在空间和时间上被认为是唯一的。
+
+```
+格式: 550e8400-e29b-41d4-a716-446655440000
+       └────┬────┘ └─┬─┘ └─┬─┘ └─┬─┘ └────┬────┘
+       时间戳    版本   变体  序列号   节点ID (MAC地址)
+```
+
+**为什么需要 UUID？**
+
+两台 PC 独立产生数据，它们的自增 ID（`INTEGER PRIMARY KEY AUTOINCREMENT`）会冲突：
+
+```
+PC①: id=1 (数学 2h)  id=2 (英语 1h)  id=3 (编程 3h)
+PC②: id=1 (英语 1h)  id=2 (数学 1h)  id=3 (日语 2h)
+
+合并后如果用 id 去重:
+  id=1: 是数学还是英语？   ← 冲突！无法区分
+  id=2: 是英语还是数学？   ← 冲突！
+  id=3: 是编程还是日语？   ← 冲突！
+```
+
+使用 UUID 后：
+
+```
+PC①: uuid=aaa... (数学 2h)  uuid=bbb... (英语 1h)  uuid=ccc... (编程 3h)
+PC②: uuid=ddd... (英语 1h)  uuid=eee... (数学 1h)  uuid=fff... (日语 2h)
+
+合并后: 6 条记录，UUID 各不同，完全不冲突 ✓
+```
+
+**UUID 的生成**：
+
+```javascript
+// Node.js (主进程)
+const { randomUUID } = require('crypto')
+const id = randomUUID()  // '550e8400-e29b-41d4-a716-446655440000'
+
+// 浏览器 (渲染进程)
+const id = crypto.randomUUID()  // Web Crypto API，所有现代浏览器都支持
+```
+
+> **经典源码学习**：UUID v4 的生成算法极其简洁——本质上是生成 122 位随机数 + 6 位固定标记位。Node.js 的 `randomUUID` 实现在 `lib/internal/crypto/random.js` 中，核心代码约 30 行。它调用操作系统的 CSPRNG（Cryptographically Secure Pseudo-Random Number Generator）来生成真正的随机字节。
+
+### 1.3 以 UUID 为 Key 的 JSON 对象：天然无冲突的数据结构
+
 ```json
+// data/focus_sessions.json
 {
-  "uuid-1": { "subject": "数学", "actual_duration_sec": 1500, ... },
-  "uuid-2": { "subject": "英语", "actual_duration_sec": 900, ... }
+  "550e8400-e29b-41d4-a716-446655440000": {
+    "subject": "数学",
+    "actual_duration_sec": 7200,
+    "status": "completed",
+    "date": "2026-06-01",
+    "started_at": "2026-06-01 09:00:00"
+  },
+  "6ba7b810-9dad-11d1-80b4-00c04fd430c8": {
+    "subject": "英语",
+    "actual_duration_sec": 3600,
+    "status": "completed",
+    "date": "2026-06-01",
+    "started_at": "2026-06-01 14:00:00"
+  }
 }
 ```
 
-以 UUID 为 key 的对象结构天然支持无冲突合并。
+**这种结构的天才之处**：
 
-### 3. Git 文件级合并
+```javascript
+// 合并两台 PC 的数据 = 一个浅合并操作
+const pc1_data = { "uuid-a": {...}, "uuid-b": {...} }
+const pc2_data = { "uuid-c": {...}, "uuid-d": {...} }
 
-`GitService.sync()` 在合并 `data/` 目录时，对 `focus_sessions.json` 执行 UUID 对象浅合并：
-```typescript
-const merged = { ...remote_obj, ...local_obj }
+// 合并（本地覆盖远程的同 UUID 条目——虽然理论上不应该发生）
+const merged = { ...pc2_data, ...pc1_data }
+// 结果: { "uuid-a": {...}, "uuid-b": {...}, "uuid-c": {...}, "uuid-d": {...} }
+// 完美！无需任何冲突解决逻辑，因为 UUID 保证了键的唯一性
 ```
-本地同 UUID 覆盖远程（理论上不应该发生，UUID 全局唯一）。
 
-### 4. JSON 导入 (`import_sessions_to_db`)
+这种结构在分布式系统中被称为 **CRDT-like Merge**（Conflict-free Replicated Data Type 风格的合并）。它利用 UUID 的唯一性将"冲突检测"问题转化为"不可能冲突"问题。
 
-同步完成后读取合并后的 JSON，逐条 `INSERT OR IGNORE`：
-- UUID 已存在 → `IGNORE`（UNIQUE 约束冲突 → 跳过）
-- UUID 不存在 → 插入新行，导入计数 +1
+### 1.4 INSERT OR IGNORE：数据库层的幂等导入
 
-### 5. 日记重建
+```sql
+INSERT OR IGNORE INTO focus_sessions
+  (uuid, subject, actual_duration_sec, ...)
+VALUES
+  ('uuid-a', '数学', 7200, ...),
+  ('uuid-b', '英语', 3600, ...);
+```
 
-若导入了新会话（`imported > 0`），自动调用 `DiaryService.generate(today)` 重建当日日记，确保日记内容反映最新的会话总数。
+`INSERT OR IGNORE` 的行为：
+- 如果 `uuid` 列的值在表中已经存在（UNIQUE 约束冲突）→ **静默跳过这一行**，不报错
+- 如果 `uuid` 列的值在表中不存在 → 正常插入
 
-## 完整同步流程
+这就是**幂等性**（Idempotency）：同一个导入操作执行 1 次和执行 100 次，结果完全相同。第一次导入插入了新数据，后续导入因为 UUID 已存在而全部跳过。
+
+**为什么不是 INSERT OR REPLACE？**
+
+```sql
+-- INSERT OR REPLACE: 如果冲突 → 删除旧行 → 插入新行
+-- 问题：如果远程数据是旧版本（同步时间差），会覆盖本地更新的数据
+
+-- INSERT OR IGNORE: 如果冲突 → 什么都不做
+-- 优势：保留首次写入的数据。UUID 唯一 → 第一次写入的就是"正确的"
+```
+
+### 1.5 完整同步流程的六步编排
 
 ```
 用户点击「一键同步」
-  → export_sessions_from_db()    写入 data/focus_sessions.json
-  → git fetch origin             获取远程引用
-  → git ls-tree + git show       逐文件读取远程内容
-  → 逐文件 merge                 日记 .md 语义合并 + JSON UUID 合并
-  → git add + commit + push      推送合并结果
-  → import_sessions_to_db()      导入远程新 UUID 的会话
-  → DiaryService.generate()      重建今日日记（如果导入了新数据）
+  │
+  ├─ Step 1: export_sessions_from_db()
+  │   从本地 SQLite 导出所有 completed 会话 → data/focus_sessions.json
+  │   格式: { uuid: { subject, actual_duration_sec, ... } }
+  │   必须在 fetch 之前！否则本地最新数据不会被包含在合并中
+  │
+  ├─ Step 2: git fetch origin
+  │   获取远程引用（不修改本地工作区）
+  │
+  ├─ Step 3: git ls-tree + git show
+  │   逐文件读取远程 sums/*.md 和 data/*.json 的内容
+  │   不 checkout，不碰工作区
+  │
+  ├─ Step 4: 逐文件 merge
+  │   .md 文件 → 语义合并（累计时间 + 合并事项分布）
+  │   .json 文件 → UUID 浅合并（{ ...remote, ...local }）
+  │   写入合并结果
+  │
+  ├─ Step 5: git add + git commit + git push
+  │   推送合并结果到远程仓库
+  │
+  └─ Step 6: import_sessions_to_db()
+      读取合并后的 data/focus_sessions.json
+      逐条 INSERT OR IGNORE INTO local SQLite
+      → 如果导入了新会话 → DiaryService.generate(today) 重建今日日记
+      → sync_diary_entries_from_files() 更新 diary_entries 表
 ```
 
-## 关键决策
+**步骤顺序不能乱**：Step 1 (export) 必须在 Step 2 (fetch) 之前，否则本地新产生的会话不会被包含在合并中。
 
-- **只同步 completed 会话**：running 状态的会话数据不完整，同步无意义
-- **UUID 进 JSON 不进 .md**：日记 markdown 保持人类可读，JSON 负责机器间数据交换
-- **`INSERT OR IGNORE` 而非 `INSERT OR REPLACE`**：保留本地首次写入的会话数据不变（UUID 唯一，不会有冲突）
-- **导入后重建日记**：确保 `sums/*.md` 反映合并后的准确总数
+---
+
+## 二、根因分析
+
+旧同步策略的根本缺陷在于**混淆了源数据和派生数据**：
+
+```
+旧：focus_sessions (源) → sums/*.md (派生) → git push → sums/*.md (PC②)
+    问题：PC② 的统计查询读的是 PC② 的 focus_sessions 表，不是 sums/*.md
+    → 同步了输出但没有同步源数据 → 统计从未反映跨 PC 数据
+```
+
+修复引入了两个关键机制：
+1. **UUID + JSON 导出**：让源数据可以跨 PC 传输
+2. **INSERT OR IGNORE 导入**：让源数据安全地合并到本地数据库
+
+---
+
+## 三、知识点总结
+
+| 知识点 | 一句话总结 |
+|--------|-----------|
+| 源数据 vs 派生数据 | 同步派生数据不能更新源数据。多节点一致性需要双向源数据同步 |
+| UUID | 全局唯一标识符，让分布式产生的数据天然不会冲突 |
+| UUID-keyed JSON | `{ uuid: data }` 结构 = 天然无冲突的分布式合并 |
+| INSERT OR IGNORE | 幂等导入：同样的数据导入 N 次，结果完全相同 |
+| 幂等性 | 同一操作执行多次的结果与执行一次相同 = 分布式系统的黄金法则 |
+| 同步步骤顺序 | export 必须在 fetch 之前 — 先保存本地数据，再拉远程数据 |
+
+---
 
 ## 涉及文件
 
-| 文件 | 改动 |
+| 文件 | 变更 |
 |------|------|
 | `electron/database/schema.sql` | focus_sessions 新增 uuid TEXT UNIQUE |
-| `electron/services/DatabaseService.ts` | 迁移：添加 uuid 列 + 历史数据补充 UUID |
-| `electron/services/SyncService.ts` | 新增 export/import_sessions 函数 + SyncResult 增加 imported_sessions |
-| `electron/services/GitService.ts` | sync() 合并 data/ 目录 JSON 文件 |
-| `electron/ipc/index.ts` | focus:start 生成 UUID；git:sync 编排 export→sync→import→rebuild |
-| `src/types/electron.d.ts` | SyncResult 增加 imported_sessions 字段 |
+| `electron/services/DatabaseService.ts` | 迁移脚本：添加 uuid 列 + UNIQUE 索引 |
+| `electron/services/SyncService.ts` | 新增 export/import_sessions + sync_diary_entries |
+| `electron/services/GitService.ts` | sync() 处理 data/ 目录 JSON UUID 合并 |
+| `electron/ipc/index.ts` | focus:start 生成 UUID；git:sync 编排六步流程 |
+| `electron/main.ts` | 启动同步补全 export → sync → import 链路 |
