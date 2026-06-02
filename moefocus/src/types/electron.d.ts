@@ -189,6 +189,7 @@ interface ElectronAPI
       new_from_remote: string[]
       new_subjects: string[]
       total_added_minutes: number
+      imported_sessions?: number
       error?: string
     }>
   }

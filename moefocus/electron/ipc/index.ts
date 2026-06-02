@@ -3,9 +3,11 @@ import { DatabaseService } from '../services/DatabaseService'
 import { DiaryService } from '../services/DiaryService'
 import { git_service } from '../services/GitService'
 import { email_service } from '../services/EmailService'
+import { export_sessions_from_db, import_sessions_to_db } from '../services/SyncService'
 import { main_window } from '../main'
 import { existsSync, unlinkSync } from 'fs'
 import { join } from 'path'
+import { randomUUID } from 'crypto'
 
 export async function registerAllHandlers(): Promise<void>
 {
@@ -197,10 +199,11 @@ function registerFocusHandlers(): void
 
   ipcMain.handle('focus:start', (_event, session) =>
   {
+    const session_uuid = randomUUID()
     db().run(
-      `INSERT INTO focus_sessions (todo_id, subject, planned_duration_min, rest_duration_sec, date, status)
-       VALUES (?, ?, ?, ?, ?, 'running')`,
-      [session.todo_id || null, session.subject, session.planned_duration_min, session.rest_duration_sec || 0, session.date]
+      `INSERT INTO focus_sessions (todo_id, subject, planned_duration_min, rest_duration_sec, date, status, uuid)
+       VALUES (?, ?, ?, ?, ?, 'running', ?)`,
+      [session.todo_id || null, session.subject, session.planned_duration_min, session.rest_duration_sec || 0, session.date, session_uuid]
     )
     // Use MAX(id) instead of last_insert_rowid for sql.js compat
     const id_row = db().get('SELECT MAX(id) as new_id FROM focus_sessions')
@@ -494,7 +497,26 @@ function registerGitHandlers(): void
   ipcMain.handle('git:sync', async () =>
   {
     const branch = get_branch()
-    return git_service.sync(branch)
+
+    // Export local sessions to data/focus_sessions.json before sync
+    export_sessions_from_db(db(), app.getPath('userData'))
+
+    const result = await git_service.sync(branch)
+
+    if (result.success)
+    {
+      // Import sessions from merged JSON (includes remote-only sessions)
+      const imported = import_sessions_to_db(db(), app.getPath('userData'))
+      if (imported > 0)
+      {
+        result.imported_sessions = imported
+        // Regenerate today's diary to reflect updated totals
+        const today = new Date().toISOString().slice(0, 10)
+        DiaryService.generate(today)
+      }
+    }
+
+    return result
   })
 }
 

@@ -2,6 +2,7 @@ import initSqlJs, { type Database as SqlJsDatabase } from 'sql.js'
 import { app } from 'electron'
 import { join } from 'path'
 import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'fs'
+import { randomUUID } from 'crypto'
 
 export class DatabaseService
 {
@@ -67,6 +68,28 @@ export class DatabaseService
       this.db!.run(schema_sql)
       this.save()
       console.log('Schema migrations applied.')
+    }
+
+    // Migration: add uuid column to focus_sessions (v2, Jun 2026)
+    try
+    {
+      const col_info = this.all("SELECT name FROM pragma_table_info('focus_sessions') WHERE name = 'uuid'")
+      if (col_info.length === 0)
+      {
+        this.run('ALTER TABLE focus_sessions ADD COLUMN uuid TEXT UNIQUE')
+        // Generate UUIDs for existing sessions
+        const null_rows = this.all('SELECT id FROM focus_sessions WHERE uuid IS NULL') as Array<{ id: number }>
+        for (const row of null_rows)
+        {
+          this.run('UPDATE focus_sessions SET uuid = ? WHERE id = ?', [randomUUID(), row.id])
+        }
+        this.save()
+        console.log('Migration: uuid column added to focus_sessions.')
+      }
+    }
+    catch (e)
+    {
+      console.log('Migration uuid:', String(e))
     }
   }
 

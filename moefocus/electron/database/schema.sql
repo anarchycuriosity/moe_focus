@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS focus_sessions (
   actual_duration_sec INTEGER DEFAULT 0,
   rest_duration_sec   INTEGER DEFAULT 0,
   status              TEXT DEFAULT 'running',
+  uuid                TEXT UNIQUE,
   started_at          TEXT DEFAULT (datetime('now')),
   ended_at            TEXT,
   date                TEXT NOT NULL

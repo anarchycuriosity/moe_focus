@@ -180,3 +180,21 @@ electron 包的 `install.js`（postinstall）做了三件事：**下载 zip → 
 - 复现 PC2 同步失败：准备两台电脑，PC1 产生新日记并同步 → PC2 自动生成同日日记后点击同步 → 观察 remote 数据是否到达本地
 - 检查 git 工作区状态：`git status` 看 `sums/*.md` 是否有未提交修改
 - 验证 checkout -B 失败场景：在有脏追踪文件的仓库执行 `git checkout -B main origin/main`
+
+---
+
+### 13. 跨 PC 数据同步需要双向数据流，不是单向导出
+
+同步 `sums/*.md` 日记文件只是把**输出**传到了另一台 PC，源数据 `focus_sessions` 表从未参与同步。统计图表查询的是源数据，所以即使日记文件正确同步，另一台 PC 的图表也不会反映远程会话。
+
+**思维出发点**：当需要多节点数据一致性时，必须区分**源数据**（`focus_sessions` 表）和**派生数据**（`sums/*.md` 文件）。同步派生数据只能让展示层一致，不能让统计层一致——因为统计需要源数据的每条记录，而不是汇总结果。
+
+**去重是分布式同步的核心难题**：多台 PC 独立产生数据，简单累加会导致同一条会话被重复计数。解决方法是给每条记录分配**全局唯一标识符 (UUID)**，合并时按 UUID 取并集，导入时用 `INSERT OR IGNORE` 跳过已存在的 UUID。
+
+**教训**：
+- UUID 是去重的基石——`crypto.randomUUID()` 在 Node 和浏览器中均可用
+- JSON 以 UUID 为 key 的对象结构天然无冲突：`{ uuid: data }` 的浅合并就是取并集
+- `INSERT OR IGNORE` 依赖 UNIQUE 约束——没有 UNIQUE 就不会触发 IGNORE
+- 导出 → 文件合并 → 导入 的三段式比直接在 DB 层 merge 更解耦、更易调试
+- 导入后必须重建派生数据（`DiaryService.generate()`），否则日记文件与数据库不一致
+- export 必须走在 sync 之前——先把本地最新数据写入 JSON，再拉取远程进行合并

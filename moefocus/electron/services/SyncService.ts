@@ -216,5 +216,86 @@ export interface SyncResult
   new_from_remote: string[]
   new_subjects: string[]
   total_added_minutes: number
+  imported_sessions?: number
   error?: string
+}
+
+// ===== Session JSON export/import for cross-PC statistics sync =====
+
+import type { DatabaseService } from './DatabaseService'
+import { join } from 'path'
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs'
+
+export function export_sessions_from_db(db: DatabaseService, user_data_path: string): void
+{
+  const sessions = db.all(
+    "SELECT uuid, subject, planned_duration_min, actual_duration_sec, rest_duration_sec, status, started_at, ended_at, date FROM focus_sessions WHERE uuid IS NOT NULL AND status = 'completed'"
+  ) as Array<Record<string, unknown>>
+
+  const data: Record<string, unknown> = {}
+  for (const s of sessions)
+  {
+    const uuid = s.uuid as string
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { uuid: _, ...session_data } = s
+    data[uuid] = session_data
+  }
+
+  const data_dir = join(user_data_path, 'data')
+  if (!existsSync(data_dir)) mkdirSync(data_dir, { recursive: true })
+
+  writeFileSync(join(data_dir, 'focus_sessions.json'), JSON.stringify(data, null, 2), 'utf-8')
+}
+
+export function import_sessions_to_db(db: DatabaseService, user_data_path: string): number
+{
+  const json_path = join(user_data_path, 'data', 'focus_sessions.json')
+  if (!existsSync(json_path)) return 0
+
+  let data: Record<string, Record<string, unknown>>
+  try
+  {
+    data = JSON.parse(readFileSync(json_path, 'utf-8'))
+  }
+  catch
+  {
+    return 0
+  }
+
+  let imported = 0
+  for (const [uuid, session] of Object.entries(data))
+  {
+    try
+    {
+      db.run(
+        `INSERT OR IGNORE INTO focus_sessions
+         (uuid, subject, planned_duration_min, actual_duration_sec, rest_duration_sec, status, started_at, ended_at, date)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          uuid,
+          session.subject || '',
+          session.planned_duration_min || 0,
+          session.actual_duration_sec || 0,
+          session.rest_duration_sec || 0,
+          session.status || 'completed',
+          session.started_at || '',
+          session.ended_at || null,
+          session.date || ''
+        ]
+      )
+
+      // Check if a row was actually inserted (changes() returns rows affected)
+      const changes_row = db.get('SELECT changes() as cnt') as { cnt: number } | undefined
+      if (changes_row && changes_row.cnt > 0)
+      {
+        imported++
+      }
+    }
+    catch
+    {
+      // Skip individual malformed sessions
+    }
+  }
+
+  return imported
 }
