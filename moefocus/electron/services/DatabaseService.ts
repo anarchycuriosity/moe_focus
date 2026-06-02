@@ -71,13 +71,15 @@ export class DatabaseService
     }
 
     // Migration: add uuid column to focus_sessions (v2, Jun 2026)
+    // sql.js does NOT support ALTER TABLE ADD COLUMN with UNIQUE constraint,
+    // so we add a plain column then create a UNIQUE INDEX separately.
     try
     {
       const col_info = this.all("SELECT name FROM pragma_table_info('focus_sessions') WHERE name = 'uuid'")
       if (col_info.length === 0)
       {
-        this.run('ALTER TABLE focus_sessions ADD COLUMN uuid TEXT UNIQUE')
-        // Generate UUIDs for existing sessions
+        this.run('ALTER TABLE focus_sessions ADD COLUMN uuid TEXT')
+        // Generate UUIDs for existing rows
         const null_rows = this.all('SELECT id FROM focus_sessions WHERE uuid IS NULL') as Array<{ id: number }>
         for (const row of null_rows)
         {
@@ -85,6 +87,15 @@ export class DatabaseService
         }
         this.save()
         console.log('Migration: uuid column added to focus_sessions.')
+      }
+
+      // UNIQUE index for INSERT OR IGNORE dedup (sql.js can't add UNIQUE via ALTER TABLE)
+      const idx_info = this.all("SELECT name FROM pragma_index_list('focus_sessions') WHERE name = 'idx_focus_uuid'")
+      if (idx_info.length === 0)
+      {
+        this.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_focus_uuid ON focus_sessions(uuid)')
+        this.save()
+        console.log('Migration: uuid unique index created.')
       }
     }
     catch (e)
