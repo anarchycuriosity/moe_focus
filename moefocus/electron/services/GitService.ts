@@ -106,7 +106,7 @@ export class GitService
     try
     {
       const g = await this.get_git()
-      result.is_repo = await g.checkIsRepo()
+      result.is_repo = existsSync(join(this.repo_path, '.git'))
 
       if (!result.is_repo)
       {
@@ -265,10 +265,13 @@ export class GitService
     {
       const g = await this.get_git()
 
-      const is_repo = await g.checkIsRepo()
-      if (!is_repo)
+      // Check .git exists at exact path — NOT checkIsRepo() which walks up
+      // and may find a .git in a parent directory (e.g. C:\Users\<user>)
+      const git_dir = join(this.repo_path, '.git')
+      if (!existsSync(git_dir))
       {
-        await g.init()
+        // --initial-branch=main avoids master/main mismatch on first push
+        await g.raw(['init', '--initial-branch=main'])
       }
 
       this.ensure_gitignore()
@@ -297,6 +300,22 @@ export class GitService
       const target = branch || (await this.get_current_branch())
 
       await this.init_repo()
+
+      // Align local branch name with target (legacy repos may use 'master')
+      try
+      {
+        const head = await g.raw(['rev-parse', '--abbrev-ref', 'HEAD'])
+        const current = head.trim()
+        if (current !== 'HEAD' && current !== target)
+        {
+          await g.raw(['branch', '-m', current, target])
+        }
+      }
+      catch
+      {
+        // No commits yet or rename failed — non-fatal
+      }
+
       const remote = await this.get_remote()
       if (!remote.url)
       {
