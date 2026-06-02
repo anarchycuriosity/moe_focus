@@ -155,3 +155,28 @@ electron 包的 `install.js`（postinstall）做了三件事：**下载 zip → 
 **调试技巧**：
 - `SELECT changes()` 是 SQLite 的内置函数，返回上一条 DML 语句影响的行数，非常适合返回给前端做 toast 消息
 - TypeScript 类型声明与实际 preload API 不同步是常见坑 — 补 `sync_cleanup` 时顺便修了 `get_weekly_breakdown`/`get_monthly_breakdown` 的缺失声明
+
+---
+
+## 第八轮修复 (2026-06-02)
+
+### 12. git checkout -B 不是无副作用的"对齐"操作
+
+`git checkout -B <branch> origin/<branch>` 在语义上 = `git branch -f <branch> origin/<branch> && git checkout <branch>`。问题出在 checkout 这步：**若工作区存在已追踪文件的未提交修改，git 会拒绝覆盖这些脏文件**，checkout 直接失败。
+
+在 MoeFocus 的同步场景中，`SchedulerService` 或 `DiaryService.generate()` 会定时刷新 `sums/*.md`，这些文件在前一次 sync 中被 commit+pushed，成为追踪文件。当前的修改使它们变成"脏文件"→ 下次 sync 的 checkout -B 试图用远程版本覆盖它们 → git 拒绝 → catch 块静默吞错 → 远程数据从未被拉取。
+
+**思维出发点**：面对"对齐本地到远程"的需求时，第一个想到的可能是 checkout/reset，但这类操作修改工作区，必然与本地未提交修改冲突。**正确的思路是"不修改工作区就读到远程文件"**——`git show origin/<branch>:<path>` 能直接输出远程文件内容，完全绕开工作区冲突。
+
+**教训**：
+- `git checkout -B` 在有脏文件时会失败，不是万能的强制对齐
+- catch 块不能静默吞错——至少应该记录 `console.error` 以便诊断
+- `git ls-remote origin <branch>` 判断远程分支是否存在，比 try-catch `checkout` 更可靠
+- `git ls-tree -r --name-only origin/<branch>:<subdir>/` 可以列出远程目录文件
+- `git show origin/<branch>:<subdir>/<file>` 可以逐文件读取远程内容
+- 整个新 sync 流程完全不触碰工作区 git 状态，脏文件不再是问题
+
+**调试技巧**：
+- 复现 PC2 同步失败：准备两台电脑，PC1 产生新日记并同步 → PC2 自动生成同日日记后点击同步 → 观察 remote 数据是否到达本地
+- 检查 git 工作区状态：`git status` 看 `sums/*.md` 是否有未提交修改
+- 验证 checkout -B 失败场景：在有脏追踪文件的仓库执行 `git checkout -B main origin/main`
