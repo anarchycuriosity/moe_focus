@@ -5,16 +5,10 @@ directories:
   buildResources: resources
 files:
   - out/**/*
-extraResources:
-  - from: sums/
-    to: sums/
 win:
   target:
     - target: nsis
       arch: [x64]
-  icon: resources/icon.ico
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
-  installerIcon: resources/icon.ico
-  uninstallerIcon: resources/icon.ico
