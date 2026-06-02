@@ -8,8 +8,10 @@ import { pathToFileURL } from 'url'
 import { is } from '@electron-toolkit/utils'
 import { registerAllHandlers } from './ipc'
 import { DatabaseService } from './services/DatabaseService'
+import { DiaryService } from './services/DiaryService'
 import { scheduler_service } from './services/SchedulerService'
 import { git_service } from './services/GitService'
+import { export_sessions_from_db, import_sessions_to_db, sync_diary_entries_from_files } from './services/SyncService'
 
 let main_window: BrowserWindow | null = null
 
@@ -66,7 +68,7 @@ app.whenReady().then(async () =>
   await DatabaseService.instance.initialize()
   await registerAllHandlers()
 
-  // Startup sync: init repo + pull from remote if configured
+  // Startup sync: init repo + sync from remote if configured
   try
   {
     await git_service.init_repo()
@@ -74,8 +76,29 @@ app.whenReady().then(async () =>
     if (remote.url) {
       const branch_row = DatabaseService.instance.get('SELECT value FROM settings WHERE key = ?', ['github.branch']) as { value: string } | undefined
       const branch = branch_row?.value || 'main'
+      const user_data_path = app.getPath('userData')
       console.log('[sync] syncing from remote:', remote.url, 'branch:', branch)
-      await git_service.sync(branch)
+
+      // Export local sessions before sync
+      export_sessions_from_db(DatabaseService.instance, user_data_path)
+
+      const result = await git_service.sync(branch)
+
+      if (result.success)
+      {
+        // Import merged sessions into local DB
+        const imported = import_sessions_to_db(DatabaseService.instance, user_data_path)
+        if (imported > 0)
+        {
+          console.log('[sync] imported', imported, 'new sessions')
+          const today = new Date().toISOString().slice(0, 10)
+          DiaryService.generate(today)
+        }
+
+        // Sync diary_entries from merged sums/*.md files
+        const diary_synced = sync_diary_entries_from_files(DatabaseService.instance, user_data_path)
+        console.log('[sync] diary entries synced:', diary_synced)
+      }
     }
   }
   catch (e)

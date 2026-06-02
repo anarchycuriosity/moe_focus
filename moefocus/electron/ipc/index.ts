@@ -3,7 +3,7 @@ import { DatabaseService } from '../services/DatabaseService'
 import { DiaryService } from '../services/DiaryService'
 import { git_service } from '../services/GitService'
 import { email_service } from '../services/EmailService'
-import { export_sessions_from_db, import_sessions_to_db } from '../services/SyncService'
+import { export_sessions_from_db, import_sessions_to_db, sync_diary_entries_from_files } from '../services/SyncService'
 import { main_window } from '../main'
 import { existsSync, unlinkSync } from 'fs'
 import { join } from 'path'
@@ -513,6 +513,14 @@ function registerGitHandlers(): void
         // Regenerate today's diary to reflect updated totals
         const today = new Date().toISOString().slice(0, 10)
         DiaryService.generate(today)
+      }
+
+      // Sync diary_entries from merged sums/*.md files
+      // This ensures the diary page reads the merged data from DB
+      const diary_synced = sync_diary_entries_from_files(db(), app.getPath('userData'))
+      if (diary_synced > 0 && result.merged_files.length === 0)
+      {
+        result.merged_files = [`${diary_synced} diary entries synced`]
       }
     }
 

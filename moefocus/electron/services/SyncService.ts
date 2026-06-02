@@ -299,3 +299,48 @@ export function import_sessions_to_db(db: DatabaseService, user_data_path: strin
 
   return imported
 }
+
+// Sync diary_entries table from merged sums/*.md files.
+// After sync, the markdown files on disk are up-to-date (merged from local + remote),
+// but diary_entries is still stale. This bridges the gap.
+export function sync_diary_entries_from_files(db: DatabaseService, user_data_path: string): number
+{
+  const sums_dir = join(user_data_path, 'sums')
+  if (!existsSync(sums_dir)) return 0
+
+  let synced = 0
+  try
+  {
+    const files = readdirSync(sums_dir).filter((f) => f.endsWith('.md'))
+    for (const f of files)
+    {
+      const date = f.replace('.md', '')
+      const content = readFileSync(join(sums_dir, f), 'utf-8')
+      const file_path = join(sums_dir, f)
+
+      const existing = db.get('SELECT id FROM diary_entries WHERE date = ?', [date])
+      if (existing)
+      {
+        // Update summary but preserve user's reflection and mood
+        db.run(
+          "UPDATE diary_entries SET summary_text = ?, file_path = ?, updated_at = datetime('now') WHERE date = ?",
+          [content, file_path, date]
+        )
+      }
+      else
+      {
+        db.run(
+          'INSERT INTO diary_entries (date, summary_text, file_path) VALUES (?, ?, ?)',
+          [date, content, file_path]
+        )
+      }
+      synced++
+    }
+  }
+  catch
+  {
+    // sums/ may be empty or inaccessible
+  }
+
+  return synced
+}
