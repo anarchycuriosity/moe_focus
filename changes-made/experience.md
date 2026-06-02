@@ -198,3 +198,16 @@ electron 包的 `install.js`（postinstall）做了三件事：**下载 zip → 
 - 导出 → 文件合并 → 导入 的三段式比直接在 DB 层 merge 更解耦、更易调试
 - 导入后必须重建派生数据（`DiaryService.generate()`），否则日记文件与数据库不一致
 - export 必须走在 sync 之前——先把本地最新数据写入 JSON，再拉取远程进行合并
+
+### 14. checkIsRepo() 向上递归是隐式陷阱
+
+`simple-git` 的 `checkIsRepo()` 默认会沿目录树向上查找 `.git`（类似 `git rev-parse --show-toplevel`），而不是判断「给定目录本身是否是 git 仓库」。当父目录（如用户主目录 `C:\Users\<user>`）存在 `.git` 时，`checkIsRepo()` 永远返回 `true`，`git init` 永远不会在目标目录创建仓库。
+
+**思维出发点**：「在仓库里」和「这个目录是仓库」是两个不同的问题。前者是集合成员检测（包容性），后者是精确匹配。git 工具链的默认语义是前者——它假设你想知道「我是否在 git 的管理范围内」。
+
+**教训**：
+- 检测「目录 X 是否有 .git」的正确方法是 `existsSync(join(X, '.git'))`，而不是 `checkIsRepo()`
+- simple-git 的 `baseDir` / `root` 配置不影响 `checkIsRepo()` 的递归行为
+- 这个 bug 的隐蔽性在于：所有 git 操作都"成功"（commit/push/pull 不报错），只是操作在错误的仓库中执行
+- 排查方法：直接检查目标目录是否有 `.git` 文件夹，而不是依赖工具报告
+- `--initial-branch=main` 是 `git init` 的最佳实践，避免 `master`/`main` 的历史遗留问题

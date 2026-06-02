@@ -1,7 +1,7 @@
 我们正在做一个叫MoeFocus的日记+专注时间统计的专注钟，类似windows的专注钟但有一些新功能集成。我们现在主要先做moefocus文件夹下的桌面端部分，moefocus-mobile文件夹下的移动端先不管。修复记录的内容已经被修复了，现在部分模块已经比较稳定了，但有以下问题你需要修复。你对以下的每点内容都要分别提交，而不是改完所有才提交。**每次对话结束前必须按下方格式在本文末尾追加修复记录review，方便下次开新终端循环。**
 
 经过最新一次修改后目前存在的问题：
-1：暂停之后应该可以继续当前计时，但是现在的暂停就直接结束计时了。
+我现在我的另一台PC上测试私人仓库数据同步的功能发现没有成功，6.1号的数据，无论是日记还是统计的时间都没能被同步过来。需要注意的是同步不只是同步当天的数据，而是增量同步。比如我今天先在第一台pc记录了5h的各种专注时间，私人仓库累计专注了各种事项50h，然后一键同步，这时私人仓库和本地的记录都是精确的各种事务都是55h。过了一段时间我打开第二台pc，本来本地仓库可能只有20h的各种事项的累计时间，点击一键同步后，本地仓库的数据也来到了55h，专注5h后一键同步，私人仓库和本地仓库的记录都去到60h。总之需求就是，无论我在哪台电脑哪个事项累计了时间都能被精确统计，就像是在一台电脑的本地统计一样。
 
 
 ---
@@ -471,3 +471,54 @@
 - 提交记录：17 commits，已 push 至 origin/main
 - 同步流程：fetch → 保存快照 → checkout -B 对齐远程 → 语义合并 → commit + push
 - 分支对齐自动处理 `master`↔`main` 不匹配问题
+
+---
+
+## 2026-06-02 修复记录 (claude: Kurisu)
+
+### 已完成 (2 commits)
+
+**1. sync() 用 git show 替代 checkout -B 避免同步静默失败** (`5d4ec38`)
+- **根因**: `checkout -B origin/<branch>` 在工作区存在已追踪文件的未提交修改时（如 SchedulerService/DiaryService 定时刷新 `sums/*.md`），git 拒绝覆盖脏文件导致 checkout 失败。旧代码 catch 块静默吞错，`remote_has_branch` 保持 false，后续 merge 变成 local vs local 的 no-op，远程数据从未被拉取，但返回 `success: true`。
+- **修复**:
+  - 完全移除 `checkout -B`，改为 `git ls-remote origin <branch>` 判断远程分支是否存在
+  - `git ls-tree -r --name-only origin/<branch>:<subdir>/` 列出远程文件
+  - `git show origin/<branch>:<subdir>/<file>` 逐文件读取远程内容
+  - 整个流程不再触碰工作区 git 状态，脏文件不影响远程数据拉取
+  - 同时纳入 `data/` 目录的 JSON 文件合并
+
+**2. 跨 PC 会话数据同步 — UUID + JSON 导出/合并/导入** (`139604a`)
+- **根因**: 统计图表查询 `focus_sessions` SQLite 表（本地私有，`.gitignore` 排除 `*.db`）。`sums/*.md` 是从数据库**派生**的输出，同步输出不会更新源数据。所以即使日记文件正确同步，PC2 的统计图表仍只显示本机会话。
+- **修复**:
+  - `focus_sessions` 新增 `uuid TEXT UNIQUE` 列，`focus:start` 自动生成 UUID，数据库迁移给历史会话补充 UUID
+  - **导出**: `SyncService.export_sessions_from_db()` — 同步前将所有 completed 会话导出为 `data/focus_sessions.json` (UUID→会话映射的 JSON 对象)
+  - **合并**: `GitService.sync()` 处理 `data/` 目录时对 JSON 执行 UUID 对象浅合并 (`{ ...remote, ...local }`)
+  - **导入**: `SyncService.import_sessions_to_db()` — 读取合并后的 JSON，`INSERT OR IGNORE` 仅插入本地不存在的 UUID
+  - **重建**: 若导入了新会话，自动调用 `DiaryService.generate(today)` 重建当日日记
+- **完整流程**: export JSON → git fetch → ls-tree 列远程文件 → git show 读远程内容 → 逐文件 merge (日记 .md 语义合并 + JSON UUID 合并) → commit + push → import 新 UUID 到本地 SQLite → 重建日记
+
+**3. init_repo() checkIsRepo 向上递归导致仓库初始化在错误目录** (`1a9d74b`)
+- **根因**: `checkIsRepo()` 向上递归查找 `.git`，`C:\Users\curiosity\` 存在 `.git`（误操作或某工具创建）→ `checkIsRepo()` 永远返回 `true` → `git init` 永远不会在 `moefocus/` 下创建仓库 → **所有 git 操作（add/commit/push）都在用户主目录的仓库中执行**。`moefocus/sums/` 和 `moefocus/data/` 从未被版本控制，这是跨 PC 同步完全失败的最根本原因。
+- **修复**:
+  - `init_repo()`: 用 `existsSync(join(repo_path, '.git'))` 直接检测 `.git` 目录替代向上递归的 `checkIsRepo()`
+  - `check_sync_status()`: 同样修复 `checkIsRepo` → `existsSync`
+  - 新仓库初始化使用 `git init --initial-branch=main` 避免 `master`/`main` 分支名不匹配
+  - `sync()`: 新增旧仓库分支名对齐步骤（`git branch -m master main`）
+- **验证**: 在 `%APPDATA%/moefocus/` 手动测试完整 sync 流程 → clone 远程验证数据拉取正确 → `merge_diaries()` 语义合并测试通过（时间累加 + 事项合并 + 反思保留）
+
+### 关键文件变更索引
+| 模块 | 文件 |
+|------|------|
+| Git 同步 | `electron/services/GitService.ts` (3 轮修改) |
+| 会话同步 | `electron/services/SyncService.ts` |
+| 数据库 | `electron/database/schema.sql`, `electron/services/DatabaseService.ts` |
+| IPC | `electron/ipc/index.ts` |
+| 类型声明 | `src/types/electron.d.ts` |
+| 经验文档 | `changes-made/13-sync-checkout-B-race-condition.md`(新), `changes-made/14-cross-pc-session-sync.md`(新), `changes-made/15-init-repo-wrong-location.md`(新), `changes-made/experience.md` |
+
+### 项目现状
+- 提交记录：20 commits ahead of origin/main，待 push
+- 同步流程重写：export JSON → fetch → ls-remote 判断远程分支 → ls-tree + git show 逐文件读远程 → 语义合并(.md) + UUID合并(.json) → 分支名对齐 → commit + push → import sessions → 重建日记
+- 三个根因全部修复：(1) checkout -B 脏文件静默失败 (2) focus_sessions 从未同步 (3) git 仓库初始化在错误目录
+- 远程数据仓库 `moe_focus_data` 已验证：push 成功、clone 成功、数据完整
+- 壁纸/日记图片正常，核心功能（计时/统计/同步/设置）稳定
