@@ -504,21 +504,27 @@
   - `check_sync_status()`: 同样修复 `checkIsRepo` → `existsSync`
   - 新仓库初始化使用 `git init --initial-branch=main` 避免 `master`/`main` 分支名不匹配
   - `sync()`: 新增旧仓库分支名对齐步骤（`git branch -m master main`）
-- **验证**: 在 `%APPDATA%/moefocus/` 手动测试完整 sync 流程 → clone 远程验证数据拉取正确 → `merge_diaries()` 语义合并测试通过（时间累加 + 事项合并 + 反思保留）
+**4. diary_entries 表未随 sync 更新 — 日记页读数据库不读文件** (`74c1667`)
+- **根因**: `diary:listAll` 和 `diary:getByDate` 查询 `diary_entries` SQLite 表，而非 `sums/*.md` 文件。同步更新了磁盘上的 markdown 文件，但 `diary_entries` 表没有同步更新，导致日记页始终看不到同步过来的历史数据。
+- **修复**:
+  - 新增 `SyncService.sync_diary_entries_from_files()`: 遍历 `sums/*.md`，将内容写入/更新 `diary_entries` 表（保留用户反思和 mood 字段）
+  - `git:sync` IPC handler: 在 import sessions 后调用 `sync_diary_entries_from_files()`
+  - `main.ts` 启动同步: 同样补充完整的 export → sync → import → sync_diary_entries 链路（之前启动同步只调了 `git_service.sync()`，缺少前后处理）
 
 ### 关键文件变更索引
 | 模块 | 文件 |
 |------|------|
 | Git 同步 | `electron/services/GitService.ts` (3 轮修改) |
-| 会话同步 | `electron/services/SyncService.ts` |
+| 会话同步 | `electron/services/SyncService.ts` (2 轮修改) |
 | 数据库 | `electron/database/schema.sql`, `electron/services/DatabaseService.ts` |
-| IPC | `electron/ipc/index.ts` |
+| IPC | `electron/ipc/index.ts` (2 轮修改) |
+| 启动入口 | `electron/main.ts` |
 | 类型声明 | `src/types/electron.d.ts` |
-| 经验文档 | `changes-made/13-sync-checkout-B-race-condition.md`(新), `changes-made/14-cross-pc-session-sync.md`(新), `changes-made/15-init-repo-wrong-location.md`(新), `changes-made/experience.md` |
+| 经验文档 | `changes-made/13~15-sync-*.md`(新 3 篇), `changes-made/experience.md` |
 
 ### 项目现状
-- 提交记录：20 commits ahead of origin/main，待 push
-- 同步流程重写：export JSON → fetch → ls-remote 判断远程分支 → ls-tree + git show 逐文件读远程 → 语义合并(.md) + UUID合并(.json) → 分支名对齐 → commit + push → import sessions → 重建日记
-- 三个根因全部修复：(1) checkout -B 脏文件静默失败 (2) focus_sessions 从未同步 (3) git 仓库初始化在错误目录
-- 远程数据仓库 `moe_focus_data` 已验证：push 成功、clone 成功、数据完整
-- 壁纸/日记图片正常，核心功能（计时/统计/同步/设置）稳定
+- 提交记录：21 commits ahead of origin/main，待 push
+- 同步完整流程：export JSON → fetch → ls-remote 判断远程分支 → ls-tree + git show 逐文件读远程 → .md语义合并 + .json UUID合并 → 分支名对齐 → commit + push → import sessions → 重建日记 → sync diary_entries
+- 四个根因全部修复：(1) checkout -B 脏文件静默失败 (2) focus_sessions 从未同步 (3) git 仓库初始化在错误目录 (4) diary_entries 不随 sync 更新
+- 远程数据仓库 `moe_focus_data` 已验证：push/clone/merge 全流程通过
+- **下一步**: 需要重启应用 (`npm run dev`) 使新代码生效，然后在设置页配置 GitHub 远程仓库地址后点击「一键同步」
