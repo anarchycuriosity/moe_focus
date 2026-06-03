@@ -21,6 +21,9 @@ interface SettingsState
   'email.qqPass': string
   'email.reminderTime': string
   'email.reminderEnabled': string
+  'email.blogReminderTime': string
+  'email.blogReminderDay': string
+  'email.blogReminderEnabled': string
   'github.remoteUrl': string
   'github.branch': string
   'ui.theme': string
@@ -40,6 +43,7 @@ export function SettingsPage(): JSX.Element
   const [loading, set_loading] = useState(true)
   const [save_msg, set_save_msg] = useState('')
   const [email_test_msg, set_email_test_msg] = useState('')
+  const [blog_test_msg, set_blog_test_msg] = useState('')
   const [git_status, set_git_status] = useState('')
 
   useEffect(() =>
@@ -73,6 +77,32 @@ export function SettingsPage(): JSX.Element
       settings['email.qqPass']
     )
     set_email_test_msg(result.success ? '连接成功!' : `连接失败: ${result.error}`)
+  }
+
+  const handle_test_reminder = async () =>
+  {
+    if (!settings['email.qqUser'] || !settings['email.qqPass'])
+    {
+      set_email_test_msg('请先填写QQ邮箱和授权码')
+      return
+    }
+    set_email_test_msg('发送中...')
+    const result = await window.electronAPI.email.send_test_reminder()
+    set_email_test_msg(result.success ? '每日提醒邮件发送成功!' : `发送失败: ${result.error}`)
+    setTimeout(() => set_email_test_msg(''), 8000)
+  }
+
+  const handle_test_blog_reminder = async () =>
+  {
+    if (!settings['email.qqUser'] || !settings['email.qqPass'])
+    {
+      set_blog_test_msg('请先填写QQ邮箱和授权码')
+      return
+    }
+    set_blog_test_msg('发送中...')
+    const result = await window.electronAPI.email.send_test_blog_reminder()
+    set_blog_test_msg(result.success ? '每周博客提醒邮件发送成功!' : `发送失败: ${result.error}`)
+    setTimeout(() => set_blog_test_msg(''), 8000)
   }
 
   const handle_check_sync = async () =>
@@ -364,13 +394,67 @@ export function SettingsPage(): JSX.Element
                 <option value="false">禁用</option>
               </select>
             </div>
-            <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
               <MoeButton variant="secondary" size="sm" onClick={handle_test_email}>
                 测试连接
+              </MoeButton>
+              <MoeButton variant="secondary" size="sm" onClick={handle_test_reminder}>
+                发送测试日记提醒
               </MoeButton>
               {email_test_msg && (
                 <span className={email_test_msg.includes('成功') ? styles.success_msg : styles.error_msg}>
                   {email_test_msg}
+                </span>
+              )}
+            </div>
+
+            <h3 style={{ marginTop: '24px' }}>每周博客提醒</h3>
+            <p className={styles.note}>
+              设定时间后，MoeFocus 会汇总本周专注数据并通过邮件提醒你写博客总结。
+            </p>
+            <div className={styles.field}>
+              <label>启用博客提醒</label>
+              <select
+                value={settings['email.blogReminderEnabled'] || 'true'}
+                onChange={(e) => update('email.blogReminderEnabled', e.target.value)}
+                className={styles.select}
+              >
+                <option value="true">启用</option>
+                <option value="false">禁用</option>
+              </select>
+            </div>
+            <div className={styles.field}>
+              <label>提醒时间</label>
+              <input
+                type="time"
+                value={settings['email.blogReminderTime'] || '10:00'}
+                onChange={(e) => update('email.blogReminderTime', e.target.value)}
+                className={styles.time_input}
+              />
+            </div>
+            <div className={styles.field}>
+              <label>提醒日期</label>
+              <select
+                value={settings['email.blogReminderDay'] || '0'}
+                onChange={(e) => update('email.blogReminderDay', e.target.value)}
+                className={styles.select}
+              >
+                <option value="0">周日</option>
+                <option value="1">周一</option>
+                <option value="2">周二</option>
+                <option value="3">周三</option>
+                <option value="4">周四</option>
+                <option value="5">周五</option>
+                <option value="6">周六</option>
+              </select>
+            </div>
+            <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <MoeButton variant="secondary" size="sm" onClick={handle_test_blog_reminder}>
+                发送测试博客提醒
+              </MoeButton>
+              {blog_test_msg && (
+                <span className={blog_test_msg.includes('成功') ? styles.success_msg : styles.error_msg}>
+                  {blog_test_msg}
                 </span>
               )}
             </div>

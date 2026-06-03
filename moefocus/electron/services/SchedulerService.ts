@@ -15,11 +15,13 @@ export class SchedulerService
 {
   private diary_job: cron.ScheduledTask | null = null
   private email_job: cron.ScheduledTask | null = null
+  private blog_job: cron.ScheduledTask | null = null
 
   start(): void
   {
     this.schedule_diary()
     this.schedule_email()
+    this.schedule_blog_reminder()
     console.log('Scheduler started.')
   }
 
@@ -101,10 +103,82 @@ export class SchedulerService
     console.log(`Email cron scheduled at ${cron_expr}`)
   }
 
+  private schedule_blog_reminder(): void
+  {
+    const db = DatabaseService.instance
+    const enabled_str = db.get('SELECT value FROM settings WHERE key = ?', ['email.blogReminderEnabled'])
+    if ((enabled_str as { value: string } | undefined)?.value !== 'true') return
+
+    const time_str = db.get('SELECT value FROM settings WHERE key = ?', ['email.blogReminderTime'])
+    const time = (time_str as { value: string } | undefined)?.value || '10:00'
+    const [hour, minute] = time.split(':').map(Number)
+
+    const day_str = db.get('SELECT value FROM settings WHERE key = ?', ['email.blogReminderDay'])
+    const day_of_week = (day_str as { value: string } | undefined)?.value || '0' // 0=Sunday
+
+    const cron_expr = `${minute} ${hour} * * ${day_of_week}`
+
+    this.blog_job = cron.schedule(cron_expr, async () =>
+    {
+      const enabled = db.get('SELECT value FROM settings WHERE key = ?', ['email.blogReminderEnabled'])
+      if ((enabled as { value: string } | undefined)?.value !== 'true') return
+
+      const qq_user = db.get('SELECT value FROM settings WHERE key = ?', ['email.qqUser'])
+      const qq_pass = db.get('SELECT value FROM settings WHERE key = ?', ['email.qqPass'])
+      if (!qq_user || !qq_pass) return
+
+      const user = (qq_user as { value: string }).value
+      const pass = (qq_pass as { value: string }).value
+
+      // Build weekly stats summary
+      const week_end = dayjs().format('YYYY-MM-DD')
+      const week_start = dayjs().subtract(7, 'day').format('YYYY-MM-DD')
+
+      const sessions = db.all(
+        `SELECT date, subject, SUM(actual_duration_sec) as total_sec
+         FROM focus_sessions
+         WHERE date >= ? AND date < ? AND status = 'completed'
+         GROUP BY date, subject
+         ORDER BY date, total_sec DESC`,
+        [week_start, week_end]
+      ) as Array<{ date: string; subject: string; total_sec: number }>
+
+      let stats_summary = `📊 本周专注统计 (${week_start} ~ ${week_end})\n\n`
+      if (sessions.length === 0)
+      {
+        stats_summary += '本周暂无专注记录。\n'
+      }
+      else
+      {
+        const by_date = new Map<string, Array<{ subject: string; total_sec: number }>>()
+        for (const s of sessions)
+        {
+          if (!by_date.has(s.date)) by_date.set(s.date, [])
+          by_date.get(s.date)!.push(s)
+        }
+        for (const [date, items] of by_date)
+        {
+          const daily_total = items.reduce((sum, i) => sum + i.total_sec, 0)
+          stats_summary += `\n${date} (共 ${Math.round(daily_total / 60)} 分钟):\n`
+          for (const item of items)
+          {
+            stats_summary += `  - ${item.subject}: ${Math.round(item.total_sec / 60)} 分钟\n`
+          }
+        }
+      }
+
+      console.log('Sending weekly blog reminder for:', week_start, '~', week_end)
+      await email_service.send_blog_reminder(week_start, week_end, user, pass, user, stats_summary)
+    })
+
+    console.log(`Blog reminder cron scheduled at ${cron_expr}`)
+  }
+
   stop(): void
   {
     if (this.diary_job) this.diary_job.stop()
     if (this.email_job) this.email_job.stop()
+    if (this.blog_job) this.blog_job.stop()
     console.log('Scheduler stopped.')
   }
 }

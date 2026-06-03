@@ -3,11 +3,13 @@ import { DatabaseService } from '../services/DatabaseService'
 import { DiaryService } from '../services/DiaryService'
 import { git_service } from '../services/GitService'
 import { email_service } from '../services/EmailService'
+import { TyporaService } from '../services/TyporaService'
 import { export_sessions_from_db, import_sessions_to_db, sync_diary_entries_from_files } from '../services/SyncService'
 import { main_window } from '../main'
 import { existsSync, unlinkSync } from 'fs'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
+import dayjs from 'dayjs'
 
 export async function registerAllHandlers(): Promise<void>
 {
@@ -591,6 +593,82 @@ function registerEmailHandlers(): void
     if (!user || !pass) return { success: false, error: 'QQ邮箱未配置' }
     const diary = db().get('SELECT summary_text FROM diary_entries WHERE date = ?', [date])
     return email_service.send_reminder(date, (user as { value: string }).value, (pass as { value: string }).value, (user as { value: string }).value, (diary as { summary_text: string } | undefined)?.summary_text || '')
+  })
+
+  // 手动测试：发送今日日记提醒（不依赖 cron 定时触发）
+  ipcMain.handle('email:sendTestReminder', async () =>
+  {
+    const user = db().get('SELECT value FROM settings WHERE key = ?', ['email.qqUser'])
+    const pass = db().get('SELECT value FROM settings WHERE key = ?', ['email.qqPass'])
+    if (!user || !pass) return { success: false, error: 'QQ邮箱未配置' }
+
+    const today = dayjs().format('YYYY-MM-DD')
+    const diary = db().get('SELECT summary_text FROM diary_entries WHERE date = ?', [today])
+    const diary_content = (diary as { summary_text: string } | undefined)?.summary_text || '(今日日记尚未生成，请先进行一次专注会话)'
+
+    const u = (user as { value: string }).value
+    const p = (pass as { value: string }).value
+    const result = await email_service.send_reminder(today, u, p, u, diary_content)
+
+    // 发送后自动打开 Typora
+    if (result.success)
+    {
+      const entry = db().get('SELECT file_path FROM diary_entries WHERE date = ?', [today])
+      if (entry)
+      {
+        TyporaService.open((entry as { file_path: string }).file_path)
+      }
+    }
+
+    return result
+  })
+
+  // 手动测试：发送每周博客提醒
+  ipcMain.handle('email:sendTestBlogReminder', async () =>
+  {
+    const user = db().get('SELECT value FROM settings WHERE key = ?', ['email.qqUser'])
+    const pass = db().get('SELECT value FROM settings WHERE key = ?', ['email.qqPass'])
+    if (!user || !pass) return { success: false, error: 'QQ邮箱未配置' }
+
+    const week_end = dayjs().format('YYYY-MM-DD')
+    const week_start = dayjs().subtract(7, 'day').format('YYYY-MM-DD')
+
+    const sessions = db().all(
+      `SELECT date, subject, SUM(actual_duration_sec) as total_sec
+       FROM focus_sessions
+       WHERE date >= ? AND date < ? AND status = 'completed'
+       GROUP BY date, subject
+       ORDER BY date, total_sec DESC`,
+      [week_start, week_end]
+    ) as Array<{ date: string; subject: string; total_sec: number }>
+
+    let stats_summary = `📊 本周专注统计 (${week_start} ~ ${week_end})\n\n`
+    if (sessions.length === 0)
+    {
+      stats_summary += '本周暂无专注记录。\n'
+    }
+    else
+    {
+      const by_date = new Map<string, Array<{ subject: string; total_sec: number }>>()
+      for (const s of sessions)
+      {
+        if (!by_date.has(s.date)) by_date.set(s.date, [])
+        by_date.get(s.date)!.push(s)
+      }
+      for (const [date, items] of by_date)
+      {
+        const daily_total = items.reduce((sum, i) => sum + i.total_sec, 0)
+        stats_summary += `\n${date} (共 ${Math.round(daily_total / 60)} 分钟):\n`
+        for (const item of items)
+        {
+          stats_summary += `  - ${item.subject}: ${Math.round(item.total_sec / 60)} 分钟\n`
+        }
+      }
+    }
+
+    const u = (user as { value: string }).value
+    const p = (pass as { value: string }).value
+    return email_service.send_blog_reminder(week_start, week_end, u, p, u, stats_summary)
   })
 
   ipcMain.handle('email:testConnection', async (_event, user, pass) =>

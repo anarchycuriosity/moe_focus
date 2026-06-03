@@ -101,6 +101,8 @@ const electron_api = {
   {
     send: (to: string, subject: string, body: string) => ipcRenderer.invoke('email:send', to, subject, body),
     send_reminder: (date: string) => ipcRenderer.invoke('email:sendReminder', date),
+    send_test_reminder: () => ipcRenderer.invoke('email:sendTestReminder'),
+    send_test_blog_reminder: () => ipcRenderer.invoke('email:sendTestBlogReminder'),
     test_connection: (user: string, pass: string) => ipcRenderer.invoke('email:testConnection', user, pass)
   },
   file:

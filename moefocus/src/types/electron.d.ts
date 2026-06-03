@@ -199,6 +199,8 @@ interface ElectronAPI
   email: {
     send: (to: string, subject: string, body: string) => Promise<{ success: boolean; error?: string }>
     send_reminder: (date: string) => Promise<{ success: boolean; error?: string }>
+    send_test_reminder: () => Promise<{ success: boolean; error?: string }>
+    send_test_blog_reminder: () => Promise<{ success: boolean; error?: string }>
     test_connection: (user: string, pass: string) => Promise<{ success: boolean; error?: string }>
   }
   file: {
