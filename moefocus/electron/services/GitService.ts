@@ -377,39 +377,45 @@ export class GitService
       const sums_snapshot = snapshot_dir(sums_dir, ['.md'])
       const data_snapshot = snapshot_dir(data_dir, ['.json'])
 
-      // Fetch remote file contents using git show (no checkout needed)
-      const fetch_remote_dir = async (subdir: string): Promise<Map<string, string>> =>
+      // 对齐本地 git 历史到远程，防止非 fast-forward push 冲突。
+      // 本地数据已经快照到内存，reset 只影响工作区 git 历史，不丢数据。
+      if (remote_has_branch)
       {
-        const remote_files = new Map<string, string>()
-        if (!remote_has_branch) return remote_files
-
         try
         {
-          const list = await g.raw(['ls-tree', '-r', '--name-only', `origin/${target}:${subdir}/`])
-          const filenames = list.split('\n').filter((f) => f.trim() && !f.includes('/'))
+          await g.raw(['reset', '--hard', `origin/${target}`])
+        }
+        catch (e)
+        {
+          // reset 失败时继续用 git show 方式拉取远程内容（降级路径）
+          console.error('[sync] reset --hard failed, falling back to git show:', e)
+        }
+      }
 
-          for (const f of filenames)
+      // 读取远程文件（reset 后工作区即是远程内容，直接读磁盘）
+      const read_remote_dir = (dir: string, exts: string[]): Map<string, string> =>
+      {
+        const files = new Map<string, string>()
+        if (!remote_has_branch) return files
+        try
+        {
+          if (existsSync(dir))
           {
-            try
+            for (const f of readdirSync(dir))
             {
-              const content = await g.show([`origin/${target}:${subdir}/${f}`])
-              remote_files.set(f, content)
-            }
-            catch
-            {
-              // Individual file may have been deleted between ls-tree and show
+              if (exts.some((ext) => f.endsWith(ext)))
+              {
+                files.set(f, readFileSync(join(dir, f), 'utf-8'))
+              }
             }
           }
         }
-        catch
-        {
-          // subdir may not exist on remote yet
-        }
-        return remote_files
+        catch { /* dir may not exist */ }
+        return files
       }
 
-      const remote_sums = await fetch_remote_dir('sums')
-      const remote_data = await fetch_remote_dir('data')
+      const remote_sums = read_remote_dir(sums_dir, ['.md'])
+      const remote_data = read_remote_dir(data_dir, ['.json'])
 
       result.remote_sums_count = remote_sums.size
       result.remote_data_count = remote_data.size
