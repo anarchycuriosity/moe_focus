@@ -73,3 +73,33 @@ declare module '*.module.css' {
 - 触发器：`push tags v*.*.*`
 - Node 版本固定用 v20 LTS（避免 v26 的兼容性问题）
 - Windows runner 默认有 Visual Studio，可以编译原生模块
+
+## 数据流误区：统计读什么？JSON 还是数据库？
+
+**常见误解**：统计图表的数据来源是 `data/focus_sessions.json` 或 `sums/*.md` 日记文件。
+
+**实际情况**：统计数据**直接查询本地 SQLite `focus_sessions` 表**，与 JSON 文件和日记文件无关。
+
+三种数据的角色完全不同：
+
+| 数据 | 存储位置 | 角色 | 谁读它 |
+|------|----------|------|--------|
+| `focus_sessions` 表 | 本地 SQLite (`moefocus.db`) | **唯一数据源 (source of truth)** | 统计图表、日记生成、导出 |
+| `data/focus_sessions.json` | GitHub 私有仓库 | **同步传输载体** | `SyncService` 导出/合并/导入 |
+| `sums/YYYY-MM-DD.md` | GitHub 私有仓库 + 本地 | **给人看的派生输出** | 用户在 Typora 中阅读/编辑 |
+
+数据流向：
+
+```
+专注会话完成 → INSERT INTO focus_sessions (SQLite)
+                    │
+                    ├── 统计图表: SELECT ... FROM focus_sessions (直接查DB)
+                    │
+                    ├── 同步: SELECT → JSON → git push → 另一台PC → git fetch → JSON → INSERT OR IGNORE (UUID去重)
+                    │
+                    └── 日记: SELECT → DiaryService.generate() → sums/*.md (派生，统计从不读它)
+```
+
+**为什么容易搞混**：因为 `sums/*.md` 日记文件和 `data/*.json` 都在 GitHub 仓库里可见，而 SQLite 数据库是本地 `.gitignore` 排除的不可见文件。从 Git 仓库的角度看似乎数据都在 JSON 和 MD 里，但实际上是反过来——JSON 和 MD 都是从 SQLite **导出**的。
+
+**教训**：区分 source of truth（SQLite）、传输格式（JSON）、展示格式（MD）。统计模块永远直接查数据库，不经过任何中间文件。
