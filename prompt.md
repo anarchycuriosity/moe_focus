@@ -1,4 +1,4 @@
-我们正在做一个叫MoeFocus的日记+专注时间统计的专注钟，类似windows的专注钟但有一些新功能集成。我们现在主要先做moefocus文件夹下的桌面端部分，moefocus-mobile文件夹下的移动端先不管。修复记录的内容已经被修复了，现在部分模块已经比较稳定了，但有以下问题你需要修复（我提出的问题也要在下一轮修复中被补充到修复记录）。你对以下的每点内容都要分别提交，而不是改完所有才提交。**每次对话结束前必须按下方格式在本文末尾追加修复记录review，方便下次开新终端循环。**
+我们正在做一个叫MoeFocus的日记+专注时间统计的专注钟，类似windows的专注钟但有一些新功能集成。我们现在主要先做moefocus文件夹下的桌面端部分，moefocus-mobile文件夹下的移动端先不管。修复记录的内容已经被修复了，现在部分模块已经比较稳定了，但有以下问题你需要修复（我提出的问题也要在下一轮修复中被补充到修复记录）。你对以下的每点内容都要分别建立新的分支并在那个分支进行提交，而不是改完所有才提交。**每次对话结束前必须按下方格式在本文末尾追加修复记录review，方便下次开新终端循环。**
 
 1：设置->GitHub的选项过于繁杂，应该简化为只有一个一键同步逻辑，并且把这个按钮丢到侧边栏，不需要每次都到设置进行同步，同步逻辑参照上一次修改，原则是确保我无论在哪台电脑工作都能正确记录和统计所有时间。让这个按钮的接口暴露在GUI以外，这样你可以直接测试而不用使用GUI。
 2：我现在在另一台pc上测试，从私人仓库进行数据日记同步依然失败，最新一次的修改并没有生效。根据上一轮修改的经验进行修复。修完之后
@@ -601,3 +601,38 @@
 - TypeScript 类型检查 exit 0，electron-vite 三包(main/preload/renderer)构建成功
 - 同步流程：export JSON → sync(仅合并JSON) → import sessions → regenerate diaries from DB → commit+push MD
 - 侧边栏一键同步 + 统计页同步联动 + DevTools `__moe_sync__()` 三层接口就绪
+
+---
+
+## 2026-06-03 第二轮修复记录 (claude: Kurisu)
+
+### 已完成 (1 commit)
+
+**1. 修复同步静默失败: ls-remote→rev-parse + 客观诊断反馈** (`e5b4449`)
+- **根因**: 
+  - `remote_has_branch` 检测使用 `git ls-remote origin <branch>`（新网络请求），认证/网络失败时被静默吞掉（空catch）→ `fetch_remote_dir()` 直接返回空Map → sync 报告 `success: true` 但零文件拉取
+  - 前端feedback仅显示"已是最新"，无法区分「同步成功有数据」vs「同步成功零数据」→ 用户看到成功但日记/统计为空，无法判断是远程空还是拉取失败
+- **修复**:
+  - `GitService.sync()`: `git fetch` 成功后改用 `git rev-parse --verify origin/<branch>` 检测远程分支是否存在（纯本地操作，零网络开销，不会因认证问题静默失败）
+  - `git fetch` 失败时立即 `return result` 并附带明确错误信息，不再进入后续静默分支
+  - `SyncResult` 新增 `remote_sums_count` / `remote_data_count` / `diary_entries_synced` 诊断字段
+  - `Sidebar.tsx`: tooltip 改为客观展示 — `远程日记: X篇 / 远程数据: X文件 / 新会话: X条 / 已同步: X天日记`，零数据时明确显示 `数据已是最新 (远程无新内容)`
+  - `StatsDashboard.tsx`: 同步反馈补充 `同步X天日记` + `新文件列表`
+  - `electron.d.ts`: SyncResult 类型声明新增诊断字段
+- **关键改进**: 
+  - `ls-remote` 是网络请求 → 需再次认证 → 可能失败被静默吞
+  - `rev-parse origin/main` 是本地操作 → fetch已下载所有对象 → 零网络开销 → 不会静默失败
+
+### 关键文件变更索引
+| 模块 | 文件 |
+|------|------|
+| Git同步 | `electron/services/GitService.ts`, `SyncService.ts` |
+| IPC处理 | `electron/ipc/index.ts` |
+| 类型声明 | `src/types/electron.d.ts` |
+| 反馈UI | `src/components/layout/Sidebar.tsx`, `src/components/stats/StatsDashboard.tsx` |
+
+### 项目现状
+- 提交记录：27 commits ahead of origin/main（本轮+1），待 push
+- TypeScript 类型检查 exit 0
+- 同步核心流程: export JSON → fetch → rev-parse(本地) → 拉取远程文件 → merge JSON(UUID去重) → import DB → regenerate diaries → sync diary_entries → commit+push
+- 三层反馈: 侧边栏tooltip + 统计页消息 + Console `__moe_sync__()`
