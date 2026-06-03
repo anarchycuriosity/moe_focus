@@ -38,7 +38,13 @@ export class SchedulerService
       console.log('Auto-generating diary for:', today)
 
       // Generate diary
-      DiaryService.generate(today)
+      const diary_result = DiaryService.generate(today)
+
+      // Auto-open Typora for writing
+      if (diary_result.file_path)
+      {
+        TyporaService.open(diary_result.file_path)
+      }
 
       // Auto sync if enabled (fetch + merge + commit + push)
       const auto_commit = db.get('SELECT value FROM settings WHERE key = ?', ['diary.autoCommit'])
