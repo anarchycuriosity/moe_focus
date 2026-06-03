@@ -102,45 +102,6 @@ export function SettingsPage(): JSX.Element
     set_git_status(lines.join('\n'))
   }
 
-  const handle_git_pull = async () =>
-  {
-    set_git_status('拉取中...')
-    const result = await window.electronAPI.git.pull()
-    set_git_status(result.success ? '拉取成功' : `拉取失败: ${result.error}`)
-  }
-
-  const handle_git_push = async () =>
-  {
-    set_git_status('推送中...')
-    const result = await window.electronAPI.git.push()
-    set_git_status(result.success ? '推送成功' : `推送失败: ${result.error}`)
-  }
-
-  const handle_git_commit = async () =>
-  {
-    set_git_status('提交中...')
-    const result = await window.electronAPI.git.commit('manual: sync from settings')
-    set_git_status(result.success ? `提交成功: ${result.message}` : `提交失败: ${result.message}`)
-  }
-
-  const handle_git_sync = async () =>
-  {
-    set_git_status('同步中...')
-    const result = await window.electronAPI.git.sync()
-    if (result.success)
-    {
-      const lines: string[] = ['同步成功!']
-      if (result.merged_files.length > 0) lines.push(`已合并: ${result.merged_files.join(', ')}`)
-      if (result.new_from_remote.length > 0) lines.push(`从远程获取: ${result.new_from_remote.join(', ')}`)
-      if (result.merged_files.length === 0 && result.new_from_remote.length === 0) lines.push('数据已是最新')
-      set_git_status(lines.join('\n'))
-    }
-    else
-    {
-      set_git_status(`同步失败: ${result.error}`)
-    }
-  }
-
   const handle_pick_typora = async () =>
   {
     const path = await window.electronAPI.file.pick_image()
@@ -421,7 +382,7 @@ export function SettingsPage(): JSX.Element
           <div className={styles.section}>
             <h3>GitHub 同步配置</h3>
             <p className={styles.note}>
-              配置一个 GitHub 私有仓库用于双 PC 数据同步。确保系统已配置 Git 凭证管理器。
+              配置一个 GitHub 私有仓库用于双 PC 数据同步。配置后可通过侧边栏底部 🔄 按钮一键同步。
             </p>
             <MoeInput
               label="远程仓库地址"
@@ -446,22 +407,6 @@ export function SettingsPage(): JSX.Element
               </MoeButton>
               <MoeButton variant="ghost" size="sm" onClick={handle_check_sync}>
                 检查同步状态
-              </MoeButton>
-            </div>
-            <div style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <MoeButton variant="primary" size="sm" onClick={handle_git_sync}>
-                一键同步
-              </MoeButton>
-            </div>
-            <div style={{ marginTop: '8px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <MoeButton variant="ghost" size="sm" onClick={handle_git_pull}>
-                拉取 (Pull)
-              </MoeButton>
-              <MoeButton variant="ghost" size="sm" onClick={handle_git_commit}>
-                提交 (Commit)
-              </MoeButton>
-              <MoeButton variant="ghost" size="sm" onClick={handle_git_push}>
-                推送 (Push)
               </MoeButton>
             </div>
             {git_status && (

@@ -60,9 +60,46 @@
 }
 
 .sidebar_footer {
-  padding: 12px 8px;
+  padding: 12px 8px 20px;
   display: flex;
   justify-content: center;
+}
+
+.sync_btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--moe-radius-sm);
+  border: 1px solid var(--moe-glass-border);
+  background: var(--moe-glass-bg);
+  color: var(--moe-text-light);
+  cursor: pointer;
+  transition: all var(--moe-transition);
+}
+
+.sync_btn:hover {
+  background: rgba(255, 183, 197, 0.2);
+  color: var(--moe-pink);
+  border-color: var(--moe-pink);
+}
+
+.sync_btn.syncing {
+  animation: sync_spin 1s linear infinite;
+  border-color: var(--moe-lavender);
+  color: var(--moe-lavender);
+}
+
+.sync_icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+@keyframes sync_spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .version {

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import styles from './Sidebar.module.css'
 
@@ -18,6 +19,39 @@ const nav_items: NavItem[] = [
 export function Sidebar(): JSX.Element
 {
   const location = useLocation()
+  const [syncing, set_syncing] = useState(false)
+  const [sync_tooltip, set_sync_tooltip] = useState('')
+
+  const handle_sync = async () =>
+  {
+    if (syncing) return
+    set_syncing(true)
+    set_sync_tooltip('同步中...')
+    try
+    {
+      const result = await window.electronAPI.git.sync()
+      if (result.success)
+      {
+        const parts: string[] = []
+        if (result.merged_files.length > 0) parts.push(`合并: ${result.merged_files.length} 文件`)
+        if (result.imported_sessions) parts.push(`导入: ${result.imported_sessions} 条会话`)
+        set_sync_tooltip(parts.length > 0 ? parts.join(', ') : '已是最新')
+      }
+      else
+      {
+        set_sync_tooltip(`失败: ${result.error}`)
+      }
+    }
+    catch
+    {
+      set_sync_tooltip('同步异常')
+    }
+    finally
+    {
+      set_syncing(false)
+      setTimeout(() => set_sync_tooltip(''), 3000)
+    }
+  }
 
   return (
     <nav className={styles.sidebar}>
@@ -40,7 +74,35 @@ export function Sidebar(): JSX.Element
           )
         })}
       </div>
-      {/* No meaningless footer */}
+      <div className={styles.sidebar_footer}>
+        <button
+          className={`${styles.sync_btn} ${syncing ? styles.syncing : ''}`}
+          onClick={handle_sync}
+          title={sync_tooltip || '一键同步数据'}
+          disabled={syncing}
+        >
+          <span className={styles.sync_icon}>{syncing ? '⏳' : '🔄'}</span>
+        </button>
+      </div>
     </nav>
   )
+}
+
+// 暴露同步接口到 GUI 以外，方便在 DevTools console 直接测试
+if (typeof window !== 'undefined')
+{
+  ;(window as unknown as Record<string, unknown>).__moe_sync__ = async () =>
+  {
+    const api = (window as unknown as Record<string, { git: { sync: () => Promise<unknown> } }>).electronAPI
+    if (!api)
+    {
+      console.error('electronAPI not available')
+      return
+    }
+    console.log('[moe_sync] starting sync...')
+    const result = await api.git.sync()
+    console.log('[moe_sync] result:', result)
+    return result
+  }
+  console.log('[MoeFocus] 同步测试接口已就绪: await window.__moe_sync__()')
 }
