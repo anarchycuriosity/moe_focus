@@ -27,7 +27,7 @@
 
 - SQLite 文件级部署，零配置
 - better-sqlite3 同步 API，在 Electron 主进程中天然适合
-- 不需要额外的数据库服务进程
+- 不需要额外的数据库服务进程·
 - 比 electron-store 更适合结构化查询（统计需要复杂的 GROUP BY）
 
 ## 架构总览

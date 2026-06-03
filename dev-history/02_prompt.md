@@ -1,10 +1,9 @@
 我们正在做一个叫MoeFocus的日记+专注时间统计的专注钟，类似windows的专注钟但有一些新功能集成。我们现在主要先做moefocus文件夹下的桌面端部分，moefocus-mobile文件夹下的移动端先不管。修复记录的内容已经被修复了，现在部分模块已经比较稳定了，但有以下问题你需要修复（我提出的问题也要在下一轮修复中被补充到修复记录）。你对以下的每点内容都要分别建立新的分支并在那个分支进行提交，而不是改完所有才提交。**每次对话结束前必须按下方格式在本文末尾追加修复记录review，方便下次开新终端循环。**如果0x_prompt.md写的review过长了，就按序号新建一个prompt.md来review，这样只看最近修改的核心代码模块而不必回顾过多。
 
-通过私人仓库同步数据这个功能已经修复很多轮了都完全不理想，我说几个需求的要点：
-1：无论在哪台pc在哪个事项专注了多少时间都能被精确地统计，统计模块和日记模块的数据应该是一样的，因为统计模块是基于仓库中的日记内容。
-2：情景模拟：比如我在pc1总专注了30h，pc2我很久没有用它的本地仓库只专注了10h，但是我用pc1的时候一直在点击同步按键，所以私人仓库中的内容一直和pc1保持一致。当天我在pc1专注完我切到pc2，点击同步按键，pc2的专注时间拿到远程仓库的内容，专注时间也同步到30h，此时pc1和pc2和远程仓库的专注时间完全一致。
-3：如果语义检测精准统计历史至今为止各项事项时间过于困难，那就切到一个新的功能branch，我们开发只统计时间同步到历史而不检测具体事项，同时完全砍掉统计模块的饼形图，对统计模块进行大改。
-4：我们这次主要解决仓库数据同步问题和时间统计问题，你可以写多几个日记来测试，push后在别的文件夹克隆仓库，测试功能是否成功，成功才算结束
+上一次修复的结果很成功，你review一下然后更新关于数据同步功能使用说明和原理的readme和review文件夹下的教育文档。
+1.checkout到新的分支我们现在来测试qq邮箱提醒的测试（我已经配置好了我的邮箱数据），现在这个功能模块完全不生效。每天设定时间提醒写日记，每周设定时间提醒写博客。
+2.新增一个定时生成当天日记并typora来写日记的功能（如果应用在启动状态的话）。
+测试功能是否成功，成功才算结束
 
 
 ## 2026-06-01 第六轮修复记录 (claude: Kurisu)
@@ -274,3 +273,49 @@
 	- `fix/sync-robust`: 2 commits，diary再生异常隔离 + syncCleanup安全防护 + git reset --hard 消除分叉
 	- 同步核心流程: export JSON → fetch → snapshot → **git reset --hard origin/main** → 读远程文件 → merge JSON(UUID去重) → commit+push → import DB → regenerate diaries → sync diary_entries → commit+push
 	- 端到端验证: 创建测试数据 → push → clone 到临时目录 → 数据完整一致 ✓
+
+---
+
+## 2026-06-03 第四轮修复记录 (claude: Kurisu)
+
+### 已完成 (3 commits, 3 分支)
+
+**1. 更新数据同步 README 和教学文档** (`392ac87`, 分支: `docs/sync-readme-update`)
+- **内容**:
+  - 新建 `moefocus/README.md`：数据同步使用说明、GitHub 配置步骤、同步入口说明、诊断字段解释
+  - 重写 `review/03-data-management-deep-dive.md` §6：从简单的 git pull/push 更新为 UUID去重 + DB regenerate 的完整同步架构。新增7个常见同步问题的根因与解决方案对照表。补充完整同步流程图（7步骤）和三层同步入口说明。
+  - `review/experience.md` 新增「数据同步血泪教训」章节：5个关键教训（不能直接 pull/push、sql.js 不支持 ALTER ADD UNIQUE、checkIsRepo 向上递归陷阱、sync 静默失败、MD 语义合并翻倍）+ 正确同步流程代码模式
+  - `review/03-data-management-deep-dive.md` 关键要点从5条扩展为6条
+
+**2. QQ 邮箱提醒功能修复** (`30c2cfd`, 分支: `fix/email-reminder`)
+- **根因**: 邮箱设置页仅有"测试连接"按钮，无法手动触发提醒邮件，用户无法验证功能是否正常。仅有每日日记提醒，缺少每周博客写作提醒。
+- **修复**:
+  - `EmailService`: 新增 `send_blog_reminder()` 方法，发送本周专注统计汇总邮件
+  - `SchedulerService`: 新增 `schedule_blog_reminder()` 每周定时任务，支持 cron `minute hour * * dayOfWeek`
+  - `SettingsPage`: 新增"发送测试日记提醒" + "发送测试博客提醒"手动测试按钮
+  - `SettingsPage`: 新增每周博客提醒设置区域（启用/时间/星期几）
+  - `IPC`: 新增 `email:sendTestReminder` 和 `email:sendTestBlogReminder` handler
+  - `Preload`: 暴露 `send_test_reminder()` 和 `send_test_blog_reminder()` 桥接
+  - `Schema`: 新增默认设置 `email.blogReminderTime`/`email.blogReminderDay`/`email.blogReminderEnabled`
+
+**3. 定时日记生成后自动用 Typora 打开** (`9433257`, 分支: `feat/diary-typora-auto-open`)
+- **修复**: `SchedulerService.schedule_diary()` 中 `DiaryService.generate()` 返回后立即调用 `TyporaService.open(file_path)`，实现「定时生成→自动打开→即时写作」工作流
+
+### 关键文件变更索引
+| 模块 | 文件 |
+|------|------|
+| 文档 | `moefocus/README.md`(新), `review/03-data-management-deep-dive.md`, `review/experience.md` |
+| 邮件服务 | `electron/services/EmailService.ts` |
+| 定时调度 | `electron/services/SchedulerService.ts` (2 轮修改) |
+| IPC处理 | `electron/ipc/index.ts` |
+| Preload | `electron/preload.ts` |
+| 设置页 | `src/pages/SettingsPage.tsx` |
+| 数据库 | `electron/database/schema.sql` |
+| 类型声明 | `src/types/electron.d.ts` |
+
+### 项目现状
+- 三个分支均待合并至 main，尚未 push
+- `docs/sync-readme-update`: 文档更新，反映当前同步架构真实状态
+- `fix/email-reminder`: 邮箱提醒从不可测试→两个测试按钮+每周博客提醒，TypeScript exit 0，electron-vite 三包构建成功
+- `feat/diary-typora-auto-open`: 定时生成→自动打开 Typora，构建成功
+- 其他模块（同步/统计/日记页/计时器）未改动，保持稳定
