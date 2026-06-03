@@ -12,7 +12,11 @@ export function DailyFocusRing(): JSX.Element
   const input_ref = useRef<HTMLInputElement>(null)
   const phase = useFocusStore((s) => s.phase)
 
-  const today_str = () => new Date().toISOString().slice(0, 10)
+  const today_str = () =>
+  {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
 
   const fetch_today = useCallback(async () =>
   {
