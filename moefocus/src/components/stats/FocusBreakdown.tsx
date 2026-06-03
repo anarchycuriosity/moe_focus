@@ -1,27 +1,26 @@
 import { useState, useEffect } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
-import dayjs from 'dayjs'
 
 interface Props
 {
-  week_start: string
+  start_date: string
+  end_date: string
   refresh_trigger?: number
 }
 
 const moe_colors = ['#FFB7C5', '#C9A9DC', '#B5EAD7', '#C7CEEA', '#FFE5B4', '#FFD1DC', '#D4C5E8', '#A8D8EA']
 
-export function FocusBreakdown({ week_start, refresh_trigger }: Props): JSX.Element
+export function FocusBreakdown({ start_date, end_date, refresh_trigger }: Props): JSX.Element
 {
   const [data, set_data] = useState<Array<{ label: string; color: string; total_seconds: number }>>([])
 
   useEffect(() =>
   {
-    const end_date = dayjs(week_start).add(7, 'day').format('YYYY-MM-DD')
-    window.electronAPI.stats.get_focus_items(week_start, end_date).then((raw) =>
+    window.electronAPI.stats.get_focus_items(start_date, end_date).then((raw) =>
     {
       set_data(raw as Array<{ label: string; color: string; total_seconds: number }>)
     })
-  }, [week_start, refresh_trigger])
+  }, [start_date, end_date, refresh_trigger])
 
   if (data.length === 0)
   {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import dayjs from 'dayjs'
 import { WeeklyChart } from './WeeklyChart'
 import { MonthlyChart } from './MonthlyChart'
@@ -18,10 +18,31 @@ export function StatsDashboard(): JSX.Element
   const [sync_msg, set_sync_msg] = useState<string | null>(null)
   const [syncing, set_syncing] = useState(false)
 
-  // Calculate current week start (Monday)
-  const today = dayjs()
-  const week_start = today.startOf('week').add(1, 'day').format('YYYY-MM-DD')
-  const current_month = today.format('YYYY-MM')
+  // Reference date controls which week/month we're viewing (navigable)
+  const [ref_date, set_ref_date] = useState(dayjs())
+
+  const navigate_week = useCallback((delta: number) =>
+  {
+    set_ref_date((d) => d.add(delta, 'week'))
+  }, [])
+
+  const navigate_month = useCallback((delta: number) =>
+  {
+    set_ref_date((d) => d.add(delta, 'month'))
+  }, [])
+
+  const go_to_current = useCallback(() =>
+  {
+    set_ref_date(dayjs())
+  }, [])
+
+  // Calculate dates from reference date
+  const week_start = ref_date.startOf('week').add(1, 'day').format('YYYY-MM-DD')
+  const week_end = ref_date.endOf('week').add(1, 'day').format('YYYY-MM-DD')
+  const current_month = ref_date.format('YYYY-MM')
+  const month_start = ref_date.startOf('month').format('YYYY-MM-DD')
+  const month_end = ref_date.endOf('month').format('YYYY-MM-DD')
+  const is_current = ref_date.isSame(dayjs(), view === 'weekly' ? 'week' : 'month')
 
   const handle_sync = async () =>
   {
@@ -128,6 +149,26 @@ export function StatsDashboard(): JSX.Element
         </div>
       )}
 
+      {/* Date navigation */}
+      <div className={styles.date_nav}>
+        <MoeButton variant="ghost" size="sm" onClick={() => view === 'weekly' ? navigate_week(-1) : navigate_month(-1)}>
+          ◀
+        </MoeButton>
+        <span className={styles.date_display}>
+          {view === 'weekly'
+            ? `${week_start} ~ ${week_end}`
+            : `${month_start} ~ ${month_end}`}
+        </span>
+        <MoeButton variant="ghost" size="sm" onClick={() => view === 'weekly' ? navigate_week(1) : navigate_month(1)}>
+          ▶
+        </MoeButton>
+        {!is_current && (
+          <MoeButton variant="ghost" size="sm" onClick={go_to_current}>
+            今
+          </MoeButton>
+        )}
+      </div>
+
       <MoeCard className={styles.chart_card}>
         {view === 'weekly' ? (
           <WeeklyChart week_start={week_start} chart_type={chart_type} refresh_trigger={refresh_trigger} />
@@ -138,7 +179,11 @@ export function StatsDashboard(): JSX.Element
 
       <MoeCard className={styles.chart_card}>
         <h3 className={styles.chart_title}>专注事项分布</h3>
-        <FocusBreakdown week_start={week_start} refresh_trigger={refresh_trigger} />
+        <FocusBreakdown
+          start_date={view === 'weekly' ? week_start : month_start}
+          end_date={view === 'weekly' ? week_end : month_end}
+          refresh_trigger={refresh_trigger}
+        />
       </MoeCard>
     </div>
   )

@@ -17,6 +17,25 @@
   gap: 4px;
 }
 
+.date_nav {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+}
+
+.date_display {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--moe-text);
+  min-width: 200px;
+  text-align: center;
+  padding: 4px 12px;
+  border-radius: 8px;
+  background: var(--moe-glass-bg);
+  border: 1px solid var(--moe-glass-border);
+}
+
 .chart_card {
   padding: 24px;
 }
