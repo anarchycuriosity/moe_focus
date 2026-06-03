@@ -105,6 +105,10 @@ const electron_api = {
     send_test_blog_reminder: () => ipcRenderer.invoke('email:sendTestBlogReminder'),
     test_connection: (user: string, pass: string) => ipcRenderer.invoke('email:testConnection', user, pass)
   },
+  scheduler:
+  {
+    trigger_diary: () => ipcRenderer.invoke('scheduler:triggerDiary')
+  },
   file:
   {
     open_in_typora: (file_path: string) => ipcRenderer.invoke('file:openInTypora', file_path),

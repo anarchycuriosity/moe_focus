@@ -203,6 +203,9 @@ interface ElectronAPI
     send_test_blog_reminder: () => Promise<{ success: boolean; error?: string }>
     test_connection: (user: string, pass: string) => Promise<{ success: boolean; error?: string }>
   }
+  scheduler: {
+    trigger_diary: () => Promise<{ success: boolean; file_path?: string; error?: string }>
+  }
   file: {
     open_in_typora: (file_path: string) => Promise<{ success: boolean }>
     pick_image: () => Promise<string | null>

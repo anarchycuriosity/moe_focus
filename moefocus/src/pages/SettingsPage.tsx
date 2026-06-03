@@ -44,6 +44,7 @@ export function SettingsPage(): JSX.Element
   const [save_msg, set_save_msg] = useState('')
   const [email_test_msg, set_email_test_msg] = useState('')
   const [blog_test_msg, set_blog_test_msg] = useState('')
+  const [diary_test_msg, set_diary_test_msg] = useState('')
   const [git_status, set_git_status] = useState('')
 
   useEffect(() =>
@@ -90,6 +91,14 @@ export function SettingsPage(): JSX.Element
     const result = await window.electronAPI.email.send_test_reminder()
     set_email_test_msg(result.success ? '每日提醒邮件发送成功!' : `发送失败: ${result.error}`)
     setTimeout(() => set_email_test_msg(''), 8000)
+  }
+
+  const handle_test_diary = async () =>
+  {
+    set_diary_test_msg('生成中...')
+    const result = await window.electronAPI.scheduler.trigger_diary()
+    set_diary_test_msg(result.success ? `日记已生成: ${result.file_path || ''}` : `生成失败: ${result.error}`)
+    setTimeout(() => set_diary_test_msg(''), 8000)
   }
 
   const handle_test_blog_reminder = async () =>
@@ -320,6 +329,16 @@ export function SettingsPage(): JSX.Element
                 <option value="true">启用</option>
                 <option value="false">禁用</option>
               </select>
+            </div>
+            <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <MoeButton variant="secondary" size="sm" onClick={handle_test_diary}>
+                测试生成日记
+              </MoeButton>
+              {diary_test_msg && (
+                <span className={diary_test_msg.includes('成功') || diary_test_msg.includes('已生成') ? styles.success_msg : styles.error_msg}>
+                  {diary_test_msg}
+                </span>
+              )}
             </div>
           </div>
         )}
