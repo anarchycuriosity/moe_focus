@@ -190,6 +190,9 @@ interface ElectronAPI
       new_subjects: string[]
       total_added_minutes: number
       imported_sessions?: number
+      remote_sums_count?: number
+      remote_data_count?: number
+      diary_entries_synced?: number
       error?: string
     }>
   }

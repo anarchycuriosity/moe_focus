@@ -41,20 +41,18 @@ export function StatsDashboard(): JSX.Element
       // 2. Clean orphan sessions (sessions without matching diary entries)
       const cleanup = await window.electronAPI.stats.sync_cleanup()
 
-      // 3. Build feedback message
+      // 3. Build feedback message with diagnostic detail
       const parts: string[] = []
-      if (sync_result.imported_sessions)
-      {
+      if (sync_result.imported_sessions && sync_result.imported_sessions > 0)
         parts.push(`导入 ${sync_result.imported_sessions} 条会话`)
-      }
+      if (sync_result.diary_entries_synced && sync_result.diary_entries_synced > 0)
+        parts.push(`同步 ${sync_result.diary_entries_synced} 天日记`)
+      if (sync_result.new_from_remote.length > 0)
+        parts.push(`新文件: ${sync_result.new_from_remote.join(', ')}`)
       if (cleanup.cleaned_sessions > 0)
-      {
         parts.push(`清理 ${cleanup.cleaned_sessions} 条孤儿记录`)
-      }
       if (parts.length === 0)
-      {
-        parts.push('数据已是最新')
-      }
+        parts.push('数据已是最新 — 远程无新内容')
       set_sync_msg(parts.join('，'))
 
       // 4. Refresh charts

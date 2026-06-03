@@ -323,23 +323,34 @@ export class GitService
         return result
       }
 
-      await g.fetch('origin')
+      // fetch: 拉取远程所有对象和引用。必须在任何 remote_has_branch
+      // 检查之前完成，之后用纯本地 rev-parse 验证（不再走网络）。
+      try
+      {
+        await g.fetch('origin')
+      }
+      catch (e)
+      {
+        result.error = `无法连接远程仓库 (fetch失败): ${String(e)}`
+        return result
+      }
 
       const sums_dir = join(this.repo_path, 'sums')
       const data_dir = join(this.repo_path, 'data')
       if (!existsSync(sums_dir)) mkdirSync(sums_dir, { recursive: true })
       if (!existsSync(data_dir)) mkdirSync(data_dir, { recursive: true })
 
-      // Check if remote branch exists (without touching working tree)
+      // 使用本地 rev-parse 验证远程追踪分支是否存在
+      // （fetch 已拉取所有对象，rev-parse 无网络开销，不会因认证问题静默失败）
       let remote_has_branch = false
       try
       {
-        const refs = await g.raw(['ls-remote', 'origin', target])
-        remote_has_branch = refs.trim().length > 0
+        const resolved = await g.raw(['rev-parse', '--verify', `origin/${target}`])
+        remote_has_branch = resolved.trim().length > 0
       }
       catch
       {
-        // Network error or no remote — will try push if we have commits
+        // 远程仓库存在但可能为空（无任何提交），此时 remote_has_branch = false
       }
 
       // Snapshot local files before any modification
@@ -399,6 +410,15 @@ export class GitService
 
       const remote_sums = await fetch_remote_dir('sums')
       const remote_data = await fetch_remote_dir('data')
+
+      result.remote_sums_count = remote_sums.size
+      result.remote_data_count = remote_data.size
+
+      // 诊断: 远程分支存在但没有拉取到任何文件 → 数据仓库可能为空
+      if (remote_has_branch && remote_sums.size === 0 && remote_data.size === 0)
+      {
+        console.log('[sync] 远程分支存在但 sums/ 和 data/ 目录为空 — 数据仓库可能尚未初始化')
+      }
 
       // MD diary files: 仅从远程拉取本地不存在的文件，不做语义合并。
       // 语义合并（累加 total_minutes）在重复同步时会翻倍，因为无法区分

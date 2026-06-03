@@ -33,13 +33,24 @@ export function Sidebar(): JSX.Element
       if (result.success)
       {
         const parts: string[] = []
-        if (result.merged_files.length > 0) parts.push(`合并: ${result.merged_files.length} 文件`)
-        if (result.imported_sessions) parts.push(`导入: ${result.imported_sessions} 条会话`)
-        set_sync_tooltip(parts.length > 0 ? parts.join(', ') : '已是最新')
+        // 客观反馈：展示从远程实际拉取和导入的数量
+        if (result.remote_sums_count && result.remote_sums_count > 0)
+          parts.push(`远程日记: ${result.remote_sums_count} 篇`)
+        if (result.remote_data_count && result.remote_data_count > 0)
+          parts.push(`远程数据: ${result.remote_data_count} 文件`)
+        if (result.imported_sessions && result.imported_sessions > 0)
+          parts.push(`新会话: ${result.imported_sessions} 条`)
+        if (result.diary_entries_synced && result.diary_entries_synced > 0)
+          parts.push(`已同步: ${result.diary_entries_synced} 天日记`)
+        if (result.new_from_remote.length > 0)
+          parts.push(`新文件: ${result.new_from_remote.join(', ')}`)
+        if (parts.length === 0)
+          parts.push('数据已是最新 (远程无新内容)')
+        set_sync_tooltip(parts.join('\n'))
       }
       else
       {
-        set_sync_tooltip(`失败: ${result.error}`)
+        set_sync_tooltip(`失败: ${result.error || '未知错误'}`)
       }
     }
     catch

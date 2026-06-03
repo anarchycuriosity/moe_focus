@@ -530,10 +530,7 @@ function registerGitHandlers(): void
       // 5. Safety net: sync diary_entries from regenerated MD files.
       //    Handles dates that have MD files but no sessions (e.g. remote-only diaries).
       const diary_synced = sync_diary_entries_from_files(db(), user_data_path)
-      if (diary_synced > 0)
-      {
-        result.merged_files = [`${diary_synced} diary entries regenerated`]
-      }
+      result.diary_entries_synced = diary_synced
 
       // 6. Commit and push regenerated diaries if new sessions were imported
       if (imported > 0 || result.new_from_remote.length > 0)
