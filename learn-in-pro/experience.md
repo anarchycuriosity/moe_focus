@@ -183,6 +183,49 @@ UUID 去重 (14)
 
 ---
 
+## 第五阶段：桌面应用打包与发版（文档 16）
+
+### 你会学到什么
+
+这是软件工程生命周期中常被初学者忽视的一环：写完代码不是终点，让用户能安装、能运行、能更新才是。本阶段覆盖从编译打包到 GitHub Release 发布的完整部署链路。
+
+### 知识图谱
+
+```
+Electron 打包原理 (16)
+  ├─ 三层结构 — 应用代码层 + Electron 运行时层 + 安装器层
+  ├─ electron-vite build — SSR 模式(main/preload) vs 浏览器模式(renderer)
+  ├─ electron-builder — 白名单打包、NSIS/portable/MSI 格式选择
+  ├─ 版本号管理 — 语义化版本 (Major.Minor.Patch)
+  └─ 体积构成 — Chromium(~80MB) + Node.js(~15MB) + 应用代码(~1.5MB)
+
+GitHub Release 发版流程 (16)
+  ├─ Tag vs Release — Tag 是 Git 快照，Release 是 GitHub 上的发布单元
+  ├─ gh CLI — 认证、创建 Release、上传附件
+  ├─ 附注标签 vs 轻量标签 — 附注标签包含元数据更完整
+  └─ 错误恢复 — 删除/重打 Tag、修复 Untagged Release
+
+安装器工程化 (16)
+  ├─ NSIS 安装向导 — oneClick/自定义路径/桌面快捷方式
+  ├─ 代码签名 — EV/OV 证书、SmartScreen 信誉系统
+  ├─ 增量更新 — .blockmap 文件与 auto-updater
+  └─ CI 自动化 — GitHub Actions 监听 Tag 推送自动构建发版
+```
+
+### 前置课程建议
+
+- **软件工程导论**：软件生命周期、构建系统、持续集成/持续部署 (CI/CD)
+- **计算机系统工程**：二进制文件结构、安装器原理、操作系统安全模型
+
+### 项目作业
+
+| 作业 | 对应文档 | 练习重点 |
+|------|---------|---------|
+| 桌面应用打包脚本 | 16 | electron-builder 配置、NSIS 参数调优 |
+| GitHub Release 自动化 | 16 | gh CLI 使用、语义化版本管理 |
+
+---
+
 ## 技能矩阵
 
 完成所有学习后，你应该掌握以下技能：
@@ -195,6 +238,7 @@ UUID 去重 (14)
 | Git | 对象模型/checkout/show/ls-tree/fetch/push | 能编写自动化 Git 操作脚本 |
 | 分布式同步 | UUID/幂等/CRDT-like Merge/源vs派生 | 能设计简单的多节点数据同步方案 |
 | 工程化 | npm 生态/安装脚本/版本管理/错误处理 | 能编写健壮的跨平台安装脚本 |
+| 打包发版 | electron-builder/NSIS/gh CLI/语义化版本 | 能独立完成桌面应用打包与 GitHub Release 发布 |
 | 调试 | 数据流追踪/静默错误排查/日志分析 | 能定位跨越多个模块的复杂 bug |
 
 ---
@@ -211,6 +255,7 @@ UUID 去重 (14)
 进阶必读：
   12                 (数据库关系与级联)
   13 → 14 → 15      (分布式同步：这是后端精华)
+  16                 (打包与发版：从代码到交付的最后一步)
 
 按需阅读：
   04 → 06            (Electron 安全模型与文件系统)
@@ -240,5 +285,5 @@ UUID 去重 (14)
 
 ---
 
-*最后更新: 2026-06-02*
+*最后更新: 2026-06-04*
 *本文档随 MoeFocus 项目演进而持续更新*
