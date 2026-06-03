@@ -45,6 +45,24 @@ export function DailyFocusRing(): JSX.Element
     }
   }, [phase, fetch_today])
 
+  // 每分钟检查日期是否跨天，自动清零进度并重新查询当天数据
+  const last_date_ref = useRef(today_str())
+
+  useEffect(() =>
+  {
+    const timer = setInterval(() =>
+    {
+      const current_date = today_str()
+      if (current_date !== last_date_ref.current)
+      {
+        last_date_ref.current = current_date
+        fetch_today()
+      }
+    }, 60000)
+
+    return () => clearInterval(timer)
+  }, [fetch_today])
+
   useEffect(() =>
   {
     if (editing && input_ref.current)
