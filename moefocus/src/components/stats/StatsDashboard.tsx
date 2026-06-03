@@ -169,22 +169,24 @@ export function StatsDashboard(): JSX.Element
         )}
       </div>
 
-      <MoeCard className={styles.chart_card}>
-        {view === 'weekly' ? (
-          <WeeklyChart week_start={week_start} chart_type={chart_type} refresh_trigger={refresh_trigger} />
-        ) : (
-          <MonthlyChart month={current_month} chart_type={chart_type} refresh_trigger={refresh_trigger} />
-        )}
-      </MoeCard>
-
-      <MoeCard className={styles.chart_card}>
-        <h3 className={styles.chart_title}>专注事项分布</h3>
-        <FocusBreakdown
-          start_date={view === 'weekly' ? week_start : month_start}
-          end_date={view === 'weekly' ? week_end : month_end}
-          refresh_trigger={refresh_trigger}
-        />
-      </MoeCard>
+      {chart_type === 'bar' ? (
+        <MoeCard className={styles.chart_card}>
+          {view === 'weekly' ? (
+            <WeeklyChart week_start={week_start} chart_type="bar" refresh_trigger={refresh_trigger} />
+          ) : (
+            <MonthlyChart month={current_month} chart_type="bar" refresh_trigger={refresh_trigger} />
+          )}
+        </MoeCard>
+      ) : (
+        <MoeCard className={styles.chart_card}>
+          <h3 className={styles.chart_title}>专注事项分布</h3>
+          <FocusBreakdown
+            start_date={view === 'weekly' ? week_start : month_start}
+            end_date={view === 'weekly' ? week_end : month_end}
+            refresh_trigger={refresh_trigger}
+          />
+        </MoeCard>
+      )}
     </div>
   )
 }
