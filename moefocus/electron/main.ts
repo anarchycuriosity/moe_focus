@@ -91,13 +91,27 @@ app.whenReady().then(async () =>
         if (imported > 0)
         {
           console.log('[sync] imported', imported, 'new sessions')
-          const today = new Date().toISOString().slice(0, 10)
-          DiaryService.generate(today)
         }
 
-        // Sync diary_entries from merged sums/*.md files
+        // Regenerate ALL diaries from DB (now has merged sessions)
+        const dates = DatabaseService.instance.all(
+          "SELECT DISTINCT date FROM focus_sessions WHERE status = 'completed' ORDER BY date"
+        ) as Array<{ date: string }>
+        for (const row of dates)
+        {
+          DiaryService.generate(row.date)
+        }
+
+        // Sync diary_entries from regenerated MD files
         const diary_synced = sync_diary_entries_from_files(DatabaseService.instance, user_data_path)
-        console.log('[sync] diary entries synced:', diary_synced)
+        console.log('[sync] diary entries regenerated:', diary_synced)
+
+        // Commit and push regenerated diaries
+        if (imported > 0 || result.new_from_remote.length > 0)
+        {
+          await git_service.commit('sync: regenerate diaries after startup merge')
+          await git_service.push(branch)
+        }
       }
     }
   }

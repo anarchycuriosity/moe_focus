@@ -497,30 +497,49 @@ function registerGitHandlers(): void
   ipcMain.handle('git:sync', async () =>
   {
     const branch = get_branch()
+    const user_data_path = app.getPath('userData')
 
-    // Export local sessions to data/focus_sessions.json before sync
-    export_sessions_from_db(db(), app.getPath('userData'))
+    // 1. Export local sessions to data/focus_sessions.json before sync
+    export_sessions_from_db(db(), user_data_path)
 
+    // 2. Sync: JSON UUID merge + commit + push (MD files are NOT merged —
+    //    semantic merge doubles totals on repeated syncs)
     const result = await git_service.sync(branch)
 
     if (result.success)
     {
-      // Import sessions from merged JSON (includes remote-only sessions)
-      const imported = import_sessions_to_db(db(), app.getPath('userData'))
+      // 3. Import sessions from merged JSON into local DB (UUID dedup)
+      const imported = import_sessions_to_db(db(), user_data_path)
       if (imported > 0)
       {
         result.imported_sessions = imported
-        // Regenerate today's diary to reflect updated totals
-        const today = new Date().toISOString().slice(0, 10)
-        DiaryService.generate(today)
       }
 
-      // Sync diary_entries from merged sums/*.md files
-      // This ensures the diary page reads the merged data from DB
-      const diary_synced = sync_diary_entries_from_files(db(), app.getPath('userData'))
-      if (diary_synced > 0 && result.merged_files.length === 0)
+      // 4. Regenerate ALL diaries from DB for dates that have completed sessions.
+      //    After JSON import, the DB has the complete session set. Regenerating
+      //    from DB produces correct MD files (totals = local + imported sessions).
+      //    DiaryService.generate() updates both sums/*.md and diary_entries.
+      const dates = db().all(
+        "SELECT DISTINCT date FROM focus_sessions WHERE status = 'completed' ORDER BY date"
+      ) as Array<{ date: string }>
+      for (const row of dates)
       {
-        result.merged_files = [`${diary_synced} diary entries synced`]
+        DiaryService.generate(row.date)
+      }
+
+      // 5. Safety net: sync diary_entries from regenerated MD files.
+      //    Handles dates that have MD files but no sessions (e.g. remote-only diaries).
+      const diary_synced = sync_diary_entries_from_files(db(), user_data_path)
+      if (diary_synced > 0)
+      {
+        result.merged_files = [`${diary_synced} diary entries regenerated`]
+      }
+
+      // 6. Commit and push regenerated diaries if new sessions were imported
+      if (imported > 0 || result.new_from_remote.length > 0)
+      {
+        await git_service.commit('sync: regenerate diaries after session merge')
+        await git_service.push(branch)
       }
     }
 

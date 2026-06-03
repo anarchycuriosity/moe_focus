@@ -6,7 +6,7 @@ import { simpleGit, type SimpleGit } from 'simple-git'
 import { app } from 'electron'
 import { join, basename } from 'path'
 import { writeFileSync, readFileSync, readdirSync, existsSync, mkdirSync } from 'fs'
-import { merge_diaries, type SyncResult } from './SyncService'
+import { type SyncResult } from './SyncService'
 
 export class GitService
 {
@@ -400,31 +400,26 @@ export class GitService
       const remote_sums = await fetch_remote_dir('sums')
       const remote_data = await fetch_remote_dir('data')
 
-      // Merge .md diary files: semantic merge (additive totals)
+      // MD diary files: 仅从远程拉取本地不存在的文件，不做语义合并。
+      // 语义合并（累加 total_minutes）在重复同步时会翻倍，因为无法区分
+      // 哪些会话已被计入。正确的合并由 JSON UUID 去重 + import 后
+      // DiaryService.generate() 从 DB 重新生成日记完成。
       const all_sum_files = new Set([...sums_snapshot.keys(), ...remote_sums.keys()])
       for (const filename of all_sum_files)
       {
         const local_content = sums_snapshot.get(filename)
         const remote_content = remote_sums.get(filename)
 
-        if (local_content && remote_content)
+        if (!local_content && remote_content)
         {
-          const merged = merge_diaries(local_content, remote_content)
-          if (merged && merged !== remote_content)
-          {
-            writeFileSync(join(sums_dir, filename), merged, 'utf-8')
-            result.merged_files.push(filename)
-          }
+          writeFileSync(join(sums_dir, filename), remote_content, 'utf-8')
+          result.new_from_remote.push(filename)
         }
         else if (local_content && !remote_content)
         {
           writeFileSync(join(sums_dir, filename), local_content, 'utf-8')
-          result.new_from_remote.push(filename)
         }
-        else if (!local_content && remote_content)
-        {
-          writeFileSync(join(sums_dir, filename), remote_content, 'utf-8')
-        }
+        // both exist: keep local, do NOT merge (JSON import + regenerate handles dedup)
       }
 
       // Merge .json data files: UUID-keyed object merge
