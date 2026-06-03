@@ -16,6 +16,7 @@ export function StatsDashboard(): JSX.Element
   const [chart_type, set_chart_type] = useState<ChartType>('bar')
   const [refresh_trigger, set_refresh_trigger] = useState(0)
   const [sync_msg, set_sync_msg] = useState<string | null>(null)
+  const [syncing, set_syncing] = useState(false)
 
   // Calculate current week start (Monday)
   const today = dayjs()
@@ -24,23 +25,49 @@ export function StatsDashboard(): JSX.Element
 
   const handle_sync = async () =>
   {
+    if (syncing) return
+    set_syncing(true)
     set_sync_msg(null)
     try
     {
-      const result = await window.electronAPI.stats.sync_cleanup()
-      if (result.cleaned_sessions > 0)
+      // 1. Full git sync: import sessions from remote (JSON UUID dedup)
+      const sync_result = await window.electronAPI.git.sync()
+      if (!sync_result.success)
       {
-        set_sync_msg(`已清理 ${result.cleaned_sessions} 条孤儿专注记录`)
+        set_sync_msg(`同步失败: ${sync_result.error || '未知错误'}`)
+        return
       }
-      else
+
+      // 2. Clean orphan sessions (sessions without matching diary entries)
+      const cleanup = await window.electronAPI.stats.sync_cleanup()
+
+      // 3. Build feedback message
+      const parts: string[] = []
+      if (sync_result.imported_sessions)
       {
-        set_sync_msg('数据已是最新，无需清理')
+        parts.push(`导入 ${sync_result.imported_sessions} 条会话`)
       }
+      if (cleanup.cleaned_sessions > 0)
+      {
+        parts.push(`清理 ${cleanup.cleaned_sessions} 条孤儿记录`)
+      }
+      if (parts.length === 0)
+      {
+        parts.push('数据已是最新')
+      }
+      set_sync_msg(parts.join('，'))
+
+      // 4. Refresh charts
       set_refresh_trigger((n) => n + 1)
     }
     catch
     {
-      set_sync_msg('同步失败，请稍后重试')
+      set_sync_msg('同步失败，请检查网络和远程仓库配置')
+    }
+    finally
+    {
+      set_syncing(false)
+      setTimeout(() => set_sync_msg(null), 5000)
     }
   }
 
@@ -81,8 +108,8 @@ export function StatsDashboard(): JSX.Element
           </MoeButton>
         </div>
 
-        <MoeButton variant="ghost" size="sm" onClick={handle_sync}>
-          🔄 同步数据
+        <MoeButton variant="ghost" size="sm" onClick={handle_sync} disabled={syncing}>
+          {syncing ? '⏳ 同步中...' : '🔄 同步数据'}
         </MoeButton>
       </div>
 
