@@ -67,6 +67,35 @@ declare module '*.module.css' {
 - 圆体字体（M PLUS Rounded 1c）天然适合萌系风格
 - canvas 樱花粒子用 requestAnimationFrame，控制在 20 个以内保证性能
 
+## 数据同步：Git 去中心化同步的血泪教训
+
+**场景**：跨 PC 同步专注会话和日记数据，不依赖中心化服务器。
+
+**教训 1 — 不能直接 git pull/push**：两台 PC 独立生成同一天日记后 push，Git 产生合并冲突且无法自动解决。正确做法：源数据（JSON）按 UUID 去重合并，派生数据（日记 MD）从数据库重新生成。
+
+**教训 2 — sql.js 不支持 ALTER TABLE ADD UNIQUE**：Emscripten 编译的 SQLite 不支持 `ALTER TABLE ... ADD COLUMN ... UNIQUE`。解决方案：先加普通列，再单独 `CREATE UNIQUE INDEX`。
+
+**教训 3 — checkIsRepo 向上递归的陷阱**：`simple-git.checkIsRepo()` 向上递归查找 `.git` 目录。如果用户主目录下恰好有 `.git`，会返回 `true`，导致仓库初始化在错误目录，所有 git 操作静默操作错误的仓库。解决方案：用 `existsSync(path.join(repo_path, '.git'))` 精确检测。
+
+**教训 4 — sync 静默失败是最危险的 bug**：
+- `git checkout -B` 遇脏文件失败时被空 catch 吞掉 → 远程数据从未拉取但返回 `success: true`
+- `git ls-remote` 是网络请求需要重新认证 → 失败时被静默吞 → 同上
+- 解决方案：(1) `git reset --hard` 替代 checkout (2) `git rev-parse` 替代 ls-remote（fetch 后纯本地操作）
+
+**教训 5 — 日记 MD 不能直接语义合并**：`merge_diaries(local, remote)` 做加法累计（local+remote），重复同步时同一天的已合并数据再次累加 → 总时间翻倍。正确做法：JSON UUID 去重合并 → import 到 DB → 从 DB regenerate MD。
+
+**关键代码模式**：
+```typescript
+// 正确的同步流程
+export_sessions_from_db(db, userDataPath)      // 1. 导出 ← DB是本地的
+await git_service.sync(branch)                  // 2. fetch + reset + merge + push
+import_sessions_to_db(db, userDataPath)         // 3. 导入 ← JSON是合并后的
+regenerate_all_diaries_from_db(db)              // 4. 从DB重生成日记
+sync_diary_entries_from_files(db, userDataPath) // 5. MD → diary_entries 表
+await git_service.commit('sync: regenerate')    // 6. 提交重生成的日记
+await git_service.push(branch)                  // 7. 推送
+```
+
 ## GitHub CI/CD for Electron
 
 - 用 `softprops/action-gh-release@v2` 自动发布到 Releases
