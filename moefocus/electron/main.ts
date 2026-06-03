@@ -97,10 +97,20 @@ app.whenReady().then(async () =>
         const dates = DatabaseService.instance.all(
           "SELECT DISTINCT date FROM focus_sessions WHERE status = 'completed' ORDER BY date"
         ) as Array<{ date: string }>
+        let regenerated_count = 0
         for (const row of dates)
         {
-          DiaryService.generate(row.date)
+          try
+          {
+            DiaryService.generate(row.date)
+            regenerated_count++
+          }
+          catch (e)
+          {
+            console.error(`[sync] diary regeneration failed for ${row.date}:`, e)
+          }
         }
+        console.log('[sync] diaries regenerated:', regenerated_count)
 
         // Sync diary_entries from regenerated MD files
         const diary_synced = sync_diary_entries_from_files(DatabaseService.instance, user_data_path)

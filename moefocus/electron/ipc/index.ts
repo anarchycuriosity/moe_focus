@@ -414,8 +414,26 @@ function registerStatsHandlers(): void
   })
 
   // 清理孤儿 focus_sessions：删除那些日期没有对应 diary_entry 的会话
+  // 安全防护：若 diary_entries 表为空则跳过删除（防止全新数据库误清全部会话）
   ipcMain.handle('stats:syncCleanup', () =>
   {
+    const diary_count = db().get('SELECT COUNT(*) as n FROM diary_entries') as { n: number }
+    if (diary_count.n === 0)
+    {
+      return { success: true, cleaned_sessions: 0, skipped: true, reason: 'diary_entries 为空，跳过清理保护' }
+    }
+
+    const orphan_count = db().get(
+      'SELECT COUNT(*) as n FROM focus_sessions WHERE date NOT IN (SELECT DISTINCT date FROM diary_entries)'
+    ) as { n: number }
+
+    // 若孤儿数量超过总会话数的一半，说明可能数据库异常，跳过清理
+    const total = db().get('SELECT COUNT(*) as n FROM focus_sessions WHERE status = \'completed\'') as { n: number }
+    if (total.n > 0 && orphan_count.n > total.n * 0.5)
+    {
+      return { success: true, cleaned_sessions: 0, skipped: true, reason: `孤儿会话占比过高 (${orphan_count.n}/${total.n})，跳过清理保护` }
+    }
+
     const result = db().run(
       `DELETE FROM focus_sessions
        WHERE date NOT IN (SELECT DISTINCT date FROM diary_entries)`
@@ -522,9 +540,18 @@ function registerGitHandlers(): void
       const dates = db().all(
         "SELECT DISTINCT date FROM focus_sessions WHERE status = 'completed' ORDER BY date"
       ) as Array<{ date: string }>
+      let regenerated_count = 0
       for (const row of dates)
       {
-        DiaryService.generate(row.date)
+        try
+        {
+          DiaryService.generate(row.date)
+          regenerated_count++
+        }
+        catch (e)
+        {
+          console.error(`[sync] diary regeneration failed for ${row.date}:`, e)
+        }
       }
 
       // 5. Safety net: sync diary_entries from regenerated MD files.
