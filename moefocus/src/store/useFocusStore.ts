@@ -14,6 +14,7 @@ interface FocusState
   rest_duration_min: number
   remaining_seconds: number
   total_seconds: number
+  session_start_remaining_seconds: number
   subject: string
   todo_id: number | null
 }
@@ -40,6 +41,7 @@ const initial_state: FocusState = {
   rest_duration_min: 5,
   remaining_seconds: 25 * 60,
   total_seconds: 25 * 60,
+  session_start_remaining_seconds: 25 * 60,
   subject: '',
   todo_id: null
 }
@@ -65,7 +67,8 @@ export const useFocusStore = create<FocusStore>((set, get) => ({
       session_id,
       phase: 'focus',
       remaining_seconds: total,
-      total_seconds: total
+      total_seconds: total,
+      session_start_remaining_seconds: total
     })
   },
 
@@ -73,7 +76,6 @@ export const useFocusStore = create<FocusStore>((set, get) => ({
 
   resume_session: () =>
   {
-    const { remaining_seconds, total_seconds } = get()
     set({
       phase: 'focus'
     })
@@ -85,7 +87,7 @@ export const useFocusStore = create<FocusStore>((set, get) => ({
     set({
       session_id,
       phase: 'focus',
-      total_seconds: remaining
+      session_start_remaining_seconds: remaining
     })
   },
 
@@ -97,7 +99,8 @@ export const useFocusStore = create<FocusStore>((set, get) => ({
     set({
       phase: 'rest',
       remaining_seconds: total,
-      total_seconds: total
+      total_seconds: total,
+      session_start_remaining_seconds: total
     })
   },
 
