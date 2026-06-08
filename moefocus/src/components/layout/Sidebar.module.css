@@ -70,9 +70,10 @@
   height: 24px;
   border: none;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.06);
-  color: var(--moe-text-light);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--moe-text);
   cursor: pointer;
+  font-weight: 700;
 }
 
 .sync_btn {
@@ -119,10 +120,11 @@
   padding: 10px 12px;
   border-radius: 8px;
   border: 1px solid var(--moe-glass-border);
-  background: rgba(255, 255, 255, 0.96);
+  background: rgba(30, 30, 56, 0.96);
   color: var(--moe-text);
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.16);
   font-size: 12px;
+  font-weight: 600;
   line-height: 1.5;
 }
 
@@ -140,6 +142,14 @@
 
 .error {
   border-color: rgba(238, 95, 112, 0.45);
+}
+
+[data-theme] .sync_notice {
+  background: rgba(255, 255, 255, 0.96);
+}
+
+[data-theme] .sync_notice button {
+  background: rgba(0, 0, 0, 0.06);
 }
 
 @keyframes sync_spin {

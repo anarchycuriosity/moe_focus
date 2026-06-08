@@ -44,6 +44,7 @@
   padding: 10px 14px;
   border-radius: 8px;
   font-size: 13px;
+  font-weight: 600;
   line-height: 1.5;
   color: var(--moe-text);
   border: 1px solid var(--moe-glass-border);
@@ -70,14 +71,25 @@
   flex-shrink: 0;
   border: none;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.65);
-  color: var(--moe-text-light);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--moe-text);
   cursor: pointer;
   font-size: 14px;
+  font-weight: 700;
   line-height: 1;
 }
 
 .sync_notice_close:hover {
+  color: var(--moe-text);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+[data-theme] .sync_notice_close {
+  background: rgba(255, 255, 255, 0.65);
+  color: var(--moe-text-light);
+}
+
+[data-theme] .sync_notice_close:hover {
   color: var(--moe-text);
   background: rgba(255, 255, 255, 0.95);
 }

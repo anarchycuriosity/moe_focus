@@ -6,6 +6,7 @@ directories:
 files:
   - out/**/*
 win:
+  signAndEditExecutable: false
   target:
     - target: nsis
       arch: [x64]

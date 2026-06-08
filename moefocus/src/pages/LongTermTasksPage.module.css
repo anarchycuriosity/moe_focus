@@ -21,8 +21,10 @@
 
 .subtitle {
   margin: 0;
-  color: var(--moe-text-light);
+  color: var(--moe-text);
+  opacity: 0.78;
   font-size: 13px;
+  font-weight: 500;
 }
 
 .summary_grid {
@@ -40,13 +42,16 @@
 }
 
 .summary_card span {
-  color: var(--moe-text-light);
+  color: var(--moe-text);
   font-size: 12px;
+  font-weight: 600;
+  opacity: 0.78;
 }
 
 .summary_card strong {
   color: var(--moe-text);
   font-size: 28px;
+  font-weight: 800;
 }
 
 .form_card {
@@ -64,11 +69,17 @@
   padding: 0 12px;
   border: 1.5px solid var(--moe-border);
   border-radius: 8px;
-  background: var(--moe-glass-hover);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--moe-text);
   font-family: var(--moe-font);
   font-size: 13px;
+  font-weight: 500;
   outline: none;
+}
+
+.title_input::placeholder {
+  color: var(--moe-text);
+  opacity: 0.48;
 }
 
 .title_input:focus, .deadline_input:focus {
@@ -87,15 +98,18 @@
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: var(--moe-text-light);
+  color: var(--moe-text);
   font-family: var(--moe-font);
   font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
+  opacity: 0.76;
 }
 
 .toolbar button:hover, .active_filter {
   background: rgba(255, 183, 197, 0.18) !important;
-  color: var(--moe-pink-dark) !important;
+  color: var(--moe-pink) !important;
+  opacity: 1;
 }
 
 .list_card {
@@ -116,7 +130,7 @@
   min-height: 62px;
   padding: 10px 12px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.48);
+  background: rgba(255, 255, 255, 0.08);
   border: 1px solid var(--moe-glass-border);
 }
 
@@ -125,7 +139,7 @@
   height: 26px;
   border-radius: 50%;
   border: 1.5px solid var(--moe-pink);
-  background: white;
+  background: rgba(255, 255, 255, 0.08);
   color: var(--moe-pink);
   cursor: pointer;
   font-weight: 700;
@@ -144,14 +158,17 @@
   white-space: nowrap;
   color: var(--moe-text);
   font-size: 14px;
+  font-weight: 700;
 }
 
 .task_main span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--moe-text-light);
+  color: var(--moe-text);
   font-size: 12px;
+  font-weight: 500;
+  opacity: 0.72;
 }
 
 .deadline_badge {
@@ -161,26 +178,28 @@
   border-radius: 999px;
   text-align: center;
   font-size: 12px;
+  font-weight: 700;
 }
 
 .state_normal {
-  color: #376d55;
+  color: #9BE4C1;
   background: rgba(58, 181, 126, 0.14);
 }
 
 .state_soon {
-  color: #89621b;
+  color: #FFD47A;
   background: rgba(244, 187, 68, 0.18);
 }
 
 .state_overdue {
-  color: #9f3645;
+  color: #FF9AAA;
   background: rgba(238, 95, 112, 0.16);
 }
 
 .state_done {
-  color: var(--moe-text-light);
+  color: var(--moe-text);
   background: rgba(120, 120, 120, 0.12);
+  opacity: 0.74;
 }
 
 .delete_btn {
@@ -188,10 +207,12 @@
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: var(--moe-text-light);
+  color: var(--moe-text);
   font-family: var(--moe-font);
   font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
+  opacity: 0.68;
 }
 
 .delete_btn:hover {
@@ -200,7 +221,7 @@
 }
 
 .done {
-  opacity: 0.66;
+  opacity: 0.72;
 }
 
 .done .task_main strong {
@@ -209,9 +230,35 @@
 
 .empty {
   margin: 24px 0;
-  color: var(--moe-text-light);
+  color: var(--moe-text);
   text-align: center;
   font-size: 13px;
+  font-weight: 500;
+  opacity: 0.72;
+}
+
+[data-theme] .title_input, [data-theme] .deadline_input {
+  background: white;
+}
+
+[data-theme] .task_row {
+  background: rgba(255, 255, 255, 0.58);
+}
+
+[data-theme] .check_btn {
+  background: white;
+}
+
+[data-theme] .state_normal {
+  color: #376d55;
+}
+
+[data-theme] .state_soon {
+  color: #89621b;
+}
+
+[data-theme] .state_overdue {
+  color: #9f3645;
 }
 
 @media (max-width: 760px) {

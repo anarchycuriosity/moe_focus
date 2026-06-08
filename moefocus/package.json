@@ -1,6 +1,6 @@
 {
   "name": "moefocus",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "MoeFocus - A cute schedule management app inspired by Windows Focus Clock",
   "main": "./out/main/index.js",
   "scripts": {
