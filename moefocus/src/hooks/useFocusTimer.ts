@@ -1,33 +1,39 @@
-// ===== Phase 3: 专注计时器 Hook (ref-based to avoid stale closure) =====
-import { useRef } from 'react'
+// ===== Phase 3: 专注计时器 Hook (module timer to survive page switches) =====
 import { useFocusStore } from '../store/useFocusStore'
 import dayjs from 'dayjs'
 
+let interval_ref: ReturnType<typeof setInterval> | null = null
+let phase_end_time_ref: number | null = null
+
 export function useFocusTimer()
 {
-  const interval_ref = useRef<ReturnType<typeof setInterval> | null>(null)
-  const phase_end_time_ref = useRef<number | null>(null)
-
   const clear = () =>
   {
-    if (interval_ref.current)
+    if (interval_ref)
     {
-      clearInterval(interval_ref.current)
-      interval_ref.current = null
+      clearInterval(interval_ref)
+      interval_ref = null
     }
-    phase_end_time_ref.current = null
+    phase_end_time_ref = null
   }
 
   const arm_timer = (remaining_seconds: number) =>
   {
-    phase_end_time_ref.current = Date.now() + remaining_seconds * 1000
-    interval_ref.current = setInterval(tick, 1000)
+    clear()
+    phase_end_time_ref = Date.now() + remaining_seconds * 1000
+    interval_ref = setInterval(tick, 1000)
   }
 
   const tick = () =>
   {
     const s = useFocusStore.getState()
-    const phase_end_time = phase_end_time_ref.current
+    if (s.phase !== 'focus' && s.phase !== 'rest')
+    {
+      clear()
+      return
+    }
+
+    const phase_end_time = phase_end_time_ref
     const remaining = phase_end_time
       ? Math.max(0, Math.ceil((phase_end_time - Date.now()) / 1000))
       : s.remaining_seconds
@@ -80,8 +86,18 @@ export function useFocusTimer()
     clear()
     const s = useFocusStore.getState()
     const actual = s.session_start_remaining_seconds - s.remaining_seconds
-    if (s.session_id) await window.electronAPI.focus.complete(s.session_id, actual > 0 ? actual : 0)
     s.pause_session()
+    if (s.session_id)
+    {
+      try
+      {
+        await window.electronAPI.focus.complete(s.session_id, actual > 0 ? actual : 0)
+      }
+      catch (err)
+      {
+        console.error('pause focus session failed:', err)
+      }
+    }
   }
 
   const resume = async () =>

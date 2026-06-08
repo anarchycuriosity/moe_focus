@@ -51,3 +51,24 @@
 验证：
 
 - 已运行 `npm run build`，构建通过。
+
+### 追加修复：点击暂停后无法暂停
+
+提交：`Codex: fix pause control across timer instances`
+
+修复问题：
+
+1. `TodayPage` 和 `FocusPage` 都会创建 `FocusTimer`，原来的 interval 句柄保存在各自的 hook 实例里。
+2. 如果在一个页面开始计时，再在另一个页面点击暂停，暂停按钮清理不到真正运行中的 interval。
+3. 修复为把 `interval_ref` 和 `phase_end_time_ref` 提升到 `useFocusTimer.ts` 的模块级变量，让所有 `useFocusTimer` 调用共享同一个计时器控制点。
+4. 暂停时先切换前端状态到 `paused`，再异步写入数据库，避免 IPC 或数据库延迟造成“按钮没反应”的观感。
+
+核心文件：
+
+- `moefocus/src/hooks/useFocusTimer.ts`
+- `changes-made/03_pause_button_not_working.md`
+- `changes-made/experience.md`
+
+验证：
+
+- 已运行 `npm run build`，构建通过。
