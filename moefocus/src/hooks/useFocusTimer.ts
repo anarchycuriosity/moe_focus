@@ -1,26 +1,44 @@
-// ===== Phase 3: 专注计时器 Hook (ref-based to avoid stale closure) =====
-import { useRef } from 'react'
+// ===== Phase 3: 专注计时器 Hook (module timer to survive page switches) =====
 import { useFocusStore } from '../store/useFocusStore'
 import dayjs from 'dayjs'
 
+let interval_ref: ReturnType<typeof setInterval> | null = null
+let phase_end_time_ref: number | null = null
+
 export function useFocusTimer()
 {
-  const interval_ref = useRef<ReturnType<typeof setInterval> | null>(null)
-
   const clear = () =>
   {
-    if (interval_ref.current)
+    if (interval_ref)
     {
-      clearInterval(interval_ref.current)
-      interval_ref.current = null
+      clearInterval(interval_ref)
+      interval_ref = null
     }
+    phase_end_time_ref = null
+  }
+
+  const arm_timer = (remaining_seconds: number) =>
+  {
+    clear()
+    phase_end_time_ref = Date.now() + remaining_seconds * 1000
+    interval_ref = setInterval(tick, 1000)
   }
 
   const tick = () =>
   {
     const s = useFocusStore.getState()
-    const r = s.remaining_seconds
-    if (r <= 1)
+    if (s.phase !== 'focus' && s.phase !== 'rest')
+    {
+      clear()
+      return
+    }
+
+    const phase_end_time = phase_end_time_ref
+    const remaining = phase_end_time
+      ? Math.max(0, Math.ceil((phase_end_time - Date.now()) / 1000))
+      : s.remaining_seconds
+
+    if (remaining <= 0)
     {
       clear()
       s.tick(0)
@@ -28,7 +46,7 @@ export function useFocusTimer()
     }
     else
     {
-      s.tick(r - 1)
+      s.tick(remaining)
     }
   }
 
@@ -39,7 +57,7 @@ export function useFocusTimer()
     {
       if (s.session_id)
       {
-        const actual = s.total_seconds - s.remaining_seconds
+        const actual = s.session_start_remaining_seconds - s.remaining_seconds
         await window.electronAPI.focus.complete(s.session_id, actual || s.total_seconds)
       }
       s.end_session()
@@ -60,16 +78,26 @@ export function useFocusTimer()
       date: today
     })
     s.start_session(session.id)
-    interval_ref.current = setInterval(tick, 1000)
+    arm_timer(useFocusStore.getState().remaining_seconds)
   }
 
   const pause = async () =>
   {
     clear()
     const s = useFocusStore.getState()
-    const actual = s.total_seconds - s.remaining_seconds
-    if (s.session_id) await window.electronAPI.focus.complete(s.session_id, actual > 0 ? actual : 0)
+    const actual = s.session_start_remaining_seconds - s.remaining_seconds
     s.pause_session()
+    if (s.session_id)
+    {
+      try
+      {
+        await window.electronAPI.focus.complete(s.session_id, actual > 0 ? actual : 0)
+      }
+      catch (err)
+      {
+        console.error('pause focus session failed:', err)
+      }
+    }
   }
 
   const resume = async () =>
@@ -85,7 +113,7 @@ export function useFocusTimer()
       date: today
     })
     s.continue_session(session.id)
-    interval_ref.current = setInterval(tick, 1000)
+    arm_timer(useFocusStore.getState().remaining_seconds)
   }
 
   const stop = async () =>
