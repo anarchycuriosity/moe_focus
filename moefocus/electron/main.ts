@@ -96,7 +96,7 @@ async function run_startup_sync(): Promise<void>
       const imported_goals = import_long_term_goals_to_db(DatabaseService.instance, user_data_path)
       if (imported_goals > 0)
       {
-        console.log('[sync] imported', imported_goals, 'long-term goals')
+        console.log('[sync] imported', imported_goals, 'long-term tasks')
       }
 
       // Regenerate ALL diaries from DB (now has merged sessions)

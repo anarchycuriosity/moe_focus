@@ -274,7 +274,7 @@ function registerFocusHandlers(): void
   })
 }
 
-// ===== 长期目标：跨设备同步的长期任务表 =====
+// ===== 长期任务：跨设备同步的任务表 =====
 function registerLongTermGoalHandlers(): void
 {
   const db = () => DatabaseService.instance
