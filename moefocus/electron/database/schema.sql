@@ -66,11 +66,25 @@ CREATE TABLE IF NOT EXISTS wallpapers (
   added_at    TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS long_term_goals (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  uuid        TEXT NOT NULL UNIQUE,
+  title       TEXT NOT NULL,
+  deadline    TEXT,
+  status      TEXT DEFAULT 'active',
+  sort_order  INTEGER DEFAULT 0,
+  is_deleted  INTEGER DEFAULT 0,
+  created_at  TEXT DEFAULT (datetime('now')),
+  updated_at  TEXT DEFAULT (datetime('now'))
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_todo_date ON todo_items(date);
 CREATE INDEX IF NOT EXISTS idx_focus_date ON focus_sessions(date);
 CREATE INDEX IF NOT EXISTS idx_focus_todo ON focus_sessions(todo_id);
 CREATE INDEX IF NOT EXISTS idx_diary_date ON diary_entries(date);
+CREATE INDEX IF NOT EXISTS idx_long_term_goals_uuid ON long_term_goals(uuid);
+CREATE INDEX IF NOT EXISTS idx_long_term_goals_deadline ON long_term_goals(deadline);
 
 -- Default settings
 INSERT OR IGNORE INTO settings (key, value) VALUES ('focus.defaultDuration', '25');

@@ -4,7 +4,13 @@ import { DiaryService } from '../services/DiaryService'
 import { git_service } from '../services/GitService'
 import { email_service } from '../services/EmailService'
 import { scheduler_service } from '../services/SchedulerService'
-import { export_sessions_from_db, import_sessions_to_db, sync_diary_entries_from_files } from '../services/SyncService'
+import {
+  export_long_term_goals_from_db,
+  export_sessions_from_db,
+  import_long_term_goals_to_db,
+  import_sessions_to_db,
+  sync_diary_entries_from_files
+} from '../services/SyncService'
 import { main_window } from '../main'
 import { existsSync, unlinkSync } from 'fs'
 import { join } from 'path'
@@ -17,6 +23,7 @@ export async function registerAllHandlers(): Promise<void>
   registerTaskHandlers()
   registerTodoHandlers()
   registerFocusHandlers()
+  registerLongTermGoalHandlers()
   // Phase 4: 日记生成与查询
   registerDiaryHandlers()
   // Phase 6: 统计聚合查询
@@ -264,6 +271,73 @@ function registerFocusHandlers(): void
        ORDER BY fs.started_at DESC`,
       [date]
     )
+  })
+}
+
+// ===== 长期目标：跨设备同步的长期任务表 =====
+function registerLongTermGoalHandlers(): void
+{
+  const db = () => DatabaseService.instance
+
+  ipcMain.handle('longTermGoal:list', () =>
+  {
+    return db().all(
+      `SELECT id, uuid, title, deadline, status, sort_order, created_at, updated_at
+       FROM long_term_goals
+       WHERE is_deleted = 0
+       ORDER BY status = 'done', COALESCE(deadline, '9999-12-31'), sort_order, created_at`
+    )
+  })
+
+  ipcMain.handle('longTermGoal:create', (_event, goal) =>
+  {
+    const uuid = randomUUID()
+    const max_row = db().get(
+      'SELECT COALESCE(MAX(sort_order), -1) as max_ord FROM long_term_goals WHERE is_deleted = 0'
+    ) as { max_ord: number } | undefined
+    const sort_order = (max_row?.max_ord ?? -1) + 1
+
+    db().run(
+      `INSERT INTO long_term_goals (uuid, title, deadline, sort_order)
+       VALUES (?, ?, ?, ?)`,
+      [uuid, goal.title, goal.deadline || null, sort_order]
+    )
+
+    return db().get('SELECT * FROM long_term_goals WHERE uuid = ?', [uuid])
+  })
+
+  ipcMain.handle('longTermGoal:update', (_event, uuid, data) =>
+  {
+    const fields: string[] = []
+    const values: unknown[] = []
+    const allowed_fields = ['title', 'deadline', 'status', 'sort_order']
+
+    for (const [key, value] of Object.entries(data))
+    {
+      if (!allowed_fields.includes(key)) continue
+      fields.push(`${key} = ?`)
+      values.push(value)
+    }
+
+    if (fields.length === 0)
+    {
+      return db().get('SELECT * FROM long_term_goals WHERE uuid = ?', [uuid])
+    }
+
+    fields.push("updated_at = datetime('now')")
+    values.push(uuid)
+    db().run(`UPDATE long_term_goals SET ${fields.join(', ')} WHERE uuid = ?`, values)
+
+    return db().get('SELECT * FROM long_term_goals WHERE uuid = ?', [uuid])
+  })
+
+  ipcMain.handle('longTermGoal:delete', (_event, uuid) =>
+  {
+    db().run(
+      "UPDATE long_term_goals SET is_deleted = 1, updated_at = datetime('now') WHERE uuid = ?",
+      [uuid]
+    )
+    return { success: true }
   })
 }
 
@@ -526,6 +600,7 @@ function registerGitHandlers(): void
     return git_service.pull(branch)
   })
   ipcMain.handle('git:setRemote', async (_event, url) => git_service.set_remote(url))
+  ipcMain.handle('git:validateRemote', async (_event, url, branch) => git_service.validate_remote(url, branch || get_branch()))
   ipcMain.handle('git:getRemote', async () => git_service.get_remote())
   ipcMain.handle('git:initRepo', async () => git_service.init_repo())
   ipcMain.handle('git:sync', async () =>
@@ -535,6 +610,7 @@ function registerGitHandlers(): void
 
     // 1. Export local sessions to data/focus_sessions.json before sync
     export_sessions_from_db(db(), user_data_path)
+    export_long_term_goals_from_db(db(), user_data_path)
 
     // 2. Sync: JSON UUID merge + commit + push (MD files are NOT merged —
     //    semantic merge doubles totals on repeated syncs)
@@ -547,6 +623,12 @@ function registerGitHandlers(): void
       if (imported > 0)
       {
         result.imported_sessions = imported
+      }
+
+      const imported_goals = import_long_term_goals_to_db(db(), user_data_path)
+      if (imported_goals > 0)
+      {
+        result.imported_goals = imported_goals
       }
 
       // 4. Regenerate ALL diaries from DB for dates that have completed sessions.
@@ -576,7 +658,7 @@ function registerGitHandlers(): void
       result.diary_entries_synced = diary_synced
 
       // 6. Commit and push regenerated diaries if new sessions were imported
-      if (imported > 0 || result.new_from_remote.length > 0)
+      if (imported > 0 || imported_goals > 0 || result.new_from_remote.length > 0)
       {
         await git_service.commit('sync: regenerate diaries after session merge')
         await git_service.push(branch)

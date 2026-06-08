@@ -46,6 +46,7 @@ export function SettingsPage(): JSX.Element
   const [blog_test_msg, set_blog_test_msg] = useState('')
   const [diary_test_msg, set_diary_test_msg] = useState('')
   const [git_status, set_git_status] = useState('')
+  const [validating_remote, set_validating_remote] = useState(false)
 
   useEffect(() =>
   {
@@ -139,6 +140,53 @@ export function SettingsPage(): JSX.Element
     if (result.ahead === 0 && result.behind === 0 && result.has_remote) lines.push('已同步')
     if (result.last_commit) lines.push(`最近提交: ${result.last_commit}`)
     set_git_status(lines.join('\n'))
+  }
+
+  const handle_validate_and_apply_remote = async () =>
+  {
+    const remote_url = (settings['github.remoteUrl'] || '').trim()
+    const branch = (settings['github.branch'] || 'main').trim() || 'main'
+
+    if (!remote_url)
+    {
+      const cleared = await window.electronAPI.git.set_remote('')
+      set_git_status(cleared.success ? '远程仓库已清空，启动同步和手动同步会跳过远程仓库。' : '远程仓库清空失败。')
+      return
+    }
+
+    set_validating_remote(true)
+    set_git_status('正在审查远程仓库可用性...')
+    try
+    {
+      await window.electronAPI.git.init_repo()
+      const check = await window.electronAPI.git.validate_remote(remote_url, branch)
+      if (!check.success)
+      {
+        set_git_status(`远程仓库不可用，未应用地址。\n${check.error || '未知错误'}`)
+        return
+      }
+
+      const applied = await window.electronAPI.git.set_remote(remote_url)
+      if (!applied.success)
+      {
+        set_git_status('远程仓库可访问，但写入本地 Git remote 失败。')
+        return
+      }
+
+      const branch_note = check.branch_exists
+        ? `分支 ${branch} 可访问`
+        : `仓库可访问，但远程分支 ${branch} 暂不存在，首次同步会尝试创建`
+      set_git_status(`远程仓库审查通过，已应用。\n${branch_note}`)
+    }
+    catch (error)
+    {
+      const error_text = error instanceof Error ? error.message : '未知错误'
+      set_git_status(`远程仓库审查异常，未应用地址。\n${error_text}`)
+    }
+    finally
+    {
+      set_validating_remote(false)
+    }
   }
 
   const handle_pick_typora = async () =>
@@ -501,12 +549,13 @@ export function SettingsPage(): JSX.Element
               onChange={(e) => update('github.branch', e.target.value)}
             />
             <div style={{ marginTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <MoeButton variant="secondary" size="sm" onClick={async () =>
-              {
-                await window.electronAPI.git.set_remote(settings['github.remoteUrl'] || '')
-                set_git_status('远程仓库已设置')
-              }}>
-                应用远程地址
+              <MoeButton
+                variant="secondary"
+                size="sm"
+                onClick={handle_validate_and_apply_remote}
+                disabled={validating_remote}
+              >
+                {validating_remote ? '审查中...' : '审查并应用远程地址'}
               </MoeButton>
               <MoeButton variant="ghost" size="sm" onClick={handle_check_sync}>
                 检查同步状态

@@ -9,13 +9,20 @@ import styles from './StatsDashboard.module.css'
 
 type ViewMode = 'weekly' | 'monthly'
 type ChartType = 'bar' | 'circle'
+type SyncNoticeType = 'info' | 'success' | 'error'
+
+interface SyncNotice
+{
+  type: SyncNoticeType
+  text: string
+}
 
 export function StatsDashboard(): JSX.Element
 {
   const [view, set_view] = useState<ViewMode>('weekly')
   const [chart_type, set_chart_type] = useState<ChartType>('bar')
   const [refresh_trigger, set_refresh_trigger] = useState(0)
-  const [sync_msg, set_sync_msg] = useState<string | null>(null)
+  const [sync_notice, set_sync_notice] = useState<SyncNotice | null>(null)
   const [syncing, set_syncing] = useState(false)
 
   // Reference date controls which week/month we're viewing (navigable)
@@ -48,14 +55,14 @@ export function StatsDashboard(): JSX.Element
   {
     if (syncing) return
     set_syncing(true)
-    set_sync_msg(null)
+    set_sync_notice({ type: 'info', text: '正在同步数据，请稍等...' })
     try
     {
       // 1. Full git sync: import sessions from remote (JSON UUID dedup)
       const sync_result = await window.electronAPI.git.sync()
       if (!sync_result.success)
       {
-        set_sync_msg(`同步失败: ${sync_result.error || '未知错误'}`)
+        set_sync_notice({ type: 'error', text: `同步失败: ${sync_result.error || '未知错误'}` })
         return
       }
 
@@ -66,27 +73,31 @@ export function StatsDashboard(): JSX.Element
       const parts: string[] = []
       if (sync_result.imported_sessions && sync_result.imported_sessions > 0)
         parts.push(`导入 ${sync_result.imported_sessions} 条会话`)
+      if (sync_result.imported_goals && sync_result.imported_goals > 0)
+        parts.push(`同步 ${sync_result.imported_goals} 条长期目标`)
       if (sync_result.diary_entries_synced && sync_result.diary_entries_synced > 0)
         parts.push(`同步 ${sync_result.diary_entries_synced} 天日记`)
       if (sync_result.new_from_remote.length > 0)
         parts.push(`新文件: ${sync_result.new_from_remote.join(', ')}`)
       if (cleanup.cleaned_sessions > 0)
         parts.push(`清理 ${cleanup.cleaned_sessions} 条孤儿记录`)
+      if (cleanup.skipped && cleanup.reason)
+        parts.push(`跳过清理: ${cleanup.reason}`)
       if (parts.length === 0)
         parts.push('数据已是最新 — 远程无新内容')
-      set_sync_msg(parts.join('，'))
+      set_sync_notice({ type: 'success', text: `同步成功: ${parts.join('，')}` })
 
       // 4. Refresh charts
       set_refresh_trigger((n) => n + 1)
     }
-    catch
+    catch (error)
     {
-      set_sync_msg('同步失败，请检查网络和远程仓库配置')
+      const error_text = error instanceof Error ? error.message : '请检查网络和远程仓库配置'
+      set_sync_notice({ type: 'error', text: `同步失败: ${error_text}` })
     }
     finally
     {
       set_syncing(false)
-      setTimeout(() => set_sync_msg(null), 5000)
     }
   }
 
@@ -132,20 +143,22 @@ export function StatsDashboard(): JSX.Element
         </MoeButton>
       </div>
 
-      {sync_msg && (
+      {sync_notice && (
         <div
-          style={{
-            textAlign: 'center',
-            padding: '8px 16px',
-            marginBottom: '8px',
-            borderRadius: '8px',
-            fontSize: '13px',
-            color: 'var(--moe-text)',
-            background: 'var(--moe-glass-bg)',
-            border: '1px solid var(--moe-glass-border)'
-          }}
+          className={`${styles.sync_notice} ${styles[sync_notice.type]}`}
+          role="status"
+          aria-live="polite"
         >
-          {sync_msg}
+          <span>{sync_notice.text}</span>
+          {!syncing && (
+            <button
+              className={styles.sync_notice_close}
+              onClick={() => set_sync_notice(null)}
+              title="关闭同步提示"
+            >
+              x
+            </button>
+          )}
         </div>
       )}
 

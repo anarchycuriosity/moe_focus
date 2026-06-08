@@ -65,6 +65,202 @@
   justify-content: center;
 }
 
+.goal_module {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding: 8px;
+}
+
+.goal_btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--moe-radius-sm);
+  border: 1px solid var(--moe-glass-border);
+  background: var(--moe-glass-bg);
+  color: var(--moe-text-light);
+  cursor: pointer;
+  transition: all var(--moe-transition);
+}
+
+.goal_btn:hover, .active_goal_btn {
+  background: rgba(255, 183, 197, 0.2);
+  color: var(--moe-pink);
+  border-color: var(--moe-pink);
+}
+
+.goal_icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.goal_badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #ee5f70;
+  color: white;
+  font-size: 10px;
+  line-height: 17px;
+  text-align: center;
+}
+
+.goal_panel {
+  position: absolute;
+  left: 64px;
+  bottom: -62px;
+  width: 330px;
+  max-height: 480px;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid var(--moe-glass-border);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.18);
+  color: var(--moe-text);
+}
+
+.goal_panel_header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.goal_panel_header strong {
+  font-size: 14px;
+}
+
+.goal_panel_header button, .sync_notice button {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--moe-text-light);
+  cursor: pointer;
+}
+
+.goal_form {
+  display: grid;
+  grid-template-columns: 1fr 120px 52px;
+  gap: 6px;
+}
+
+.goal_form input {
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid var(--moe-border);
+  border-radius: 6px;
+  font-family: var(--moe-font);
+  font-size: 12px;
+  color: var(--moe-text);
+  background: white;
+}
+
+.goal_form button {
+  border: none;
+  border-radius: 6px;
+  background: var(--moe-pink);
+  color: white;
+  font-family: var(--moe-font);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.goal_table {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+}
+
+.goal_empty {
+  margin: 8px 0;
+  color: var(--moe-text-light);
+  font-size: 12px;
+  text-align: center;
+}
+
+.goal_row {
+  display: grid;
+  grid-template-columns: 24px 1fr 24px;
+  gap: 8px;
+  align-items: center;
+  min-height: 44px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  background: rgba(255, 183, 197, 0.08);
+}
+
+.goal_check {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--moe-pink);
+  background: white;
+  color: var(--moe-pink);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.goal_text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.goal_text span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.goal_text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--moe-text-light);
+}
+
+.goal_delete {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--moe-text-light);
+  cursor: pointer;
+}
+
+.goal_delete:hover {
+  background: rgba(238, 95, 112, 0.12);
+  color: #ee5f70;
+}
+
+.goal_done {
+  opacity: 0.62;
+}
+
+.goal_done .goal_text span {
+  text-decoration: line-through;
+}
+
 .sync_btn {
   display: flex;
   flex-direction: column;
@@ -95,6 +291,41 @@
 .sync_icon {
   font-size: 18px;
   line-height: 1;
+}
+
+.sync_notice {
+  position: absolute;
+  left: 82px;
+  bottom: 20px;
+  z-index: 130;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 300px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--moe-glass-border);
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--moe-text);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.16);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.sync_notice span {
+  flex: 1;
+}
+
+.info {
+  border-color: rgba(120, 148, 255, 0.35);
+}
+
+.success {
+  border-color: rgba(58, 181, 126, 0.42);
+}
+
+.error {
+  border-color: rgba(238, 95, 112, 0.45);
 }
 
 @keyframes sync_spin {

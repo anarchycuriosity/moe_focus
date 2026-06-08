@@ -102,6 +102,31 @@ export class DatabaseService
     {
       console.log('Migration uuid:', String(e))
     }
+
+    try
+    {
+      this.run(
+        `CREATE TABLE IF NOT EXISTS long_term_goals (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid        TEXT NOT NULL UNIQUE,
+          title       TEXT NOT NULL,
+          deadline    TEXT,
+          status      TEXT DEFAULT 'active',
+          sort_order  INTEGER DEFAULT 0,
+          is_deleted  INTEGER DEFAULT 0,
+          created_at  TEXT DEFAULT (datetime('now')),
+          updated_at  TEXT DEFAULT (datetime('now'))
+        )`
+      )
+      this.run('CREATE INDEX IF NOT EXISTS idx_long_term_goals_uuid ON long_term_goals(uuid)')
+      this.run('CREATE INDEX IF NOT EXISTS idx_long_term_goals_deadline ON long_term_goals(deadline)')
+      this.save()
+      console.log('Migration: long_term_goals table ready.')
+    }
+    catch (e)
+    {
+      console.log('Migration long_term_goals:', String(e))
+    }
   }
 
   save(): void

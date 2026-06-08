@@ -222,25 +222,56 @@ export class GitService
     try
     {
       const g = await this.get_git()
+      const trimmed_url = url.trim()
 
       // Check if remote origin exists
       const remotes = await g.getRemotes(true)
       const has_origin = remotes.some((r) => r.name === 'origin')
 
+      if (!trimmed_url)
+      {
+        if (has_origin)
+        {
+          await g.removeRemote('origin')
+        }
+        return { success: true, url: '' }
+      }
+
       if (has_origin)
       {
-        await g.remote(['set-url', 'origin', url])
+        await g.remote(['set-url', 'origin', trimmed_url])
       }
       else
       {
-        await g.addRemote('origin', url)
+        await g.addRemote('origin', trimmed_url)
       }
 
-      return { success: true, url }
+      return { success: true, url: trimmed_url }
     }
     catch (e)
     {
       return { success: false, url }
+    }
+  }
+
+  async validate_remote(url: string, branch?: string): Promise<{ success: boolean; error?: string; branch_exists?: boolean }>
+  {
+    const trimmed_url = url.trim()
+    if (!trimmed_url)
+    {
+      return { success: false, error: '远程仓库地址为空' }
+    }
+
+    try
+    {
+      const g = await this.get_git()
+      const target = branch || 'main'
+      const refs = await g.raw(['ls-remote', '--heads', trimmed_url, target])
+      return { success: true, branch_exists: refs.trim().length > 0 }
+    }
+    catch (e)
+    {
+      return { success: false, error: String(e) }
     }
   }
 

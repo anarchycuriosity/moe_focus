@@ -28,6 +28,14 @@ interface FocusInput
   date: string
 }
 
+interface LongTermGoalInput
+{
+  title: string
+  deadline?: string | null
+  status?: string
+  sort_order?: number
+}
+
 interface Task
 {
   id: number
@@ -71,6 +79,18 @@ interface FocusSession
   date: string
   task_title?: string
   custom_title?: string
+}
+
+interface LongTermGoal
+{
+  id: number
+  uuid: string
+  title: string
+  deadline: string | null
+  status: 'active' | 'done'
+  sort_order: number
+  created_at: string
+  updated_at: string
 }
 
 interface DiaryEntry
@@ -142,8 +162,14 @@ interface ElectronAPI
     on_tick: (cb: (remaining: number) => void) => () => void
     on_session_end: (cb: () => void) => () => void
   }
+  long_term_goals: {
+    list: () => Promise<LongTermGoal[]>
+    create: (goal: LongTermGoalInput) => Promise<LongTermGoal>
+    update: (uuid: string, data: Partial<LongTermGoalInput>) => Promise<LongTermGoal>
+    remove: (uuid: string) => Promise<{ success: boolean }>
+  }
   diary: {
-    generate: (date: string) => Promise<{ success: boolean; date: string }>
+    generate: (date: string) => Promise<{ success: boolean; date: string; file_path?: string; content?: string }>
     get_by_date: (date: string) => Promise<DiaryEntry | null>
     save_reflection: (date: string, text: string) => Promise<{ success: boolean }>
     list_all: () => Promise<Array<{ date: string; file_path: string | null; mood: string | null }>>
@@ -156,7 +182,7 @@ interface ElectronAPI
     get_focus_items: (start_date: string, end_date: string) => Promise<FocusItemStat[]>
     get_weekly_breakdown: (week_start: string) => Promise<BreakdownRow[]>
     get_monthly_breakdown: (month: string) => Promise<BreakdownRow[]>
-    sync_cleanup: () => Promise<{ success: boolean; cleaned_sessions: number }>
+    sync_cleanup: () => Promise<{ success: boolean; cleaned_sessions: number; skipped?: boolean; reason?: string }>
   }
   settings: {
     get: (key: string) => Promise<string | null>
@@ -181,6 +207,7 @@ interface ElectronAPI
     push: () => Promise<{ success: boolean; error?: string }>
     pull: () => Promise<{ success: boolean; error?: string }>
     set_remote: (url: string) => Promise<{ success: boolean; url: string }>
+    validate_remote: (url: string, branch: string) => Promise<{ success: boolean; error?: string; branch_exists?: boolean }>
     get_remote: () => Promise<{ url: string }>
     init_repo: () => Promise<{ success: boolean; error?: string }>
     sync: () => Promise<{
@@ -193,6 +220,7 @@ interface ElectronAPI
       remote_sums_count?: number
       remote_data_count?: number
       diary_entries_synced?: number
+      imported_goals?: number
       error?: string
     }>
   }

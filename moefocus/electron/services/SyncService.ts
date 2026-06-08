@@ -220,6 +220,7 @@ export interface SyncResult
   remote_sums_count?: number
   remote_data_count?: number
   diary_entries_synced?: number
+  imported_goals?: number
   error?: string
 }
 
@@ -248,6 +249,29 @@ export function export_sessions_from_db(db: DatabaseService, user_data_path: str
   if (!existsSync(data_dir)) mkdirSync(data_dir, { recursive: true })
 
   writeFileSync(join(data_dir, 'focus_sessions.json'), JSON.stringify(data, null, 2), 'utf-8')
+}
+
+export function export_long_term_goals_from_db(db: DatabaseService, user_data_path: string): void
+{
+  const goals = db.all(
+    `SELECT uuid, title, deadline, status, sort_order, is_deleted, created_at, updated_at
+     FROM long_term_goals
+     WHERE uuid IS NOT NULL`
+  ) as Array<Record<string, unknown>>
+
+  const data: Record<string, unknown> = {}
+  for (const goal of goals)
+  {
+    const uuid = goal.uuid as string
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { uuid: _, ...goal_data } = goal
+    data[uuid] = goal_data
+  }
+
+  const data_dir = join(user_data_path, 'data')
+  if (!existsSync(data_dir)) mkdirSync(data_dir, { recursive: true })
+
+  writeFileSync(join(data_dir, 'long_term_goals.json'), JSON.stringify(data, null, 2), 'utf-8')
 }
 
 export function import_sessions_to_db(db: DatabaseService, user_data_path: string): number
@@ -297,6 +321,84 @@ export function import_sessions_to_db(db: DatabaseService, user_data_path: strin
     catch
     {
       // Skip individual malformed sessions
+    }
+  }
+
+  return imported
+}
+
+export function import_long_term_goals_to_db(db: DatabaseService, user_data_path: string): number
+{
+  const json_path = join(user_data_path, 'data', 'long_term_goals.json')
+  if (!existsSync(json_path)) return 0
+
+  let data: Record<string, Record<string, unknown>>
+  try
+  {
+    data = JSON.parse(readFileSync(json_path, 'utf-8'))
+  }
+  catch
+  {
+    return 0
+  }
+
+  let imported = 0
+  for (const [uuid, goal] of Object.entries(data))
+  {
+    try
+    {
+      const incoming_updated_at = String(goal.updated_at || '')
+      const existing = db.get(
+        'SELECT updated_at FROM long_term_goals WHERE uuid = ?',
+        [uuid]
+      ) as { updated_at: string } | undefined
+
+      if (existing && existing.updated_at >= incoming_updated_at)
+      {
+        continue
+      }
+
+      if (existing)
+      {
+        db.run(
+          `UPDATE long_term_goals
+           SET title = ?, deadline = ?, status = ?, sort_order = ?, is_deleted = ?, created_at = ?, updated_at = ?
+           WHERE uuid = ?`,
+          [
+            goal.title || '',
+            goal.deadline || null,
+            goal.status || 'active',
+            goal.sort_order || 0,
+            goal.is_deleted || 0,
+            goal.created_at || incoming_updated_at,
+            incoming_updated_at,
+            uuid
+          ]
+        )
+      }
+      else
+      {
+        db.run(
+          `INSERT INTO long_term_goals
+           (uuid, title, deadline, status, sort_order, is_deleted, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            uuid,
+            goal.title || '',
+            goal.deadline || null,
+            goal.status || 'active',
+            goal.sort_order || 0,
+            goal.is_deleted || 0,
+            goal.created_at || incoming_updated_at,
+            incoming_updated_at
+          ]
+        )
+      }
+      imported++
+    }
+    catch
+    {
+      // Skip individual malformed goals
     }
   }
 

@@ -12,6 +12,14 @@ interface DiaryEntry
   mood: string | null
 }
 
+type GenerateNoticeType = 'success' | 'error'
+
+interface GenerateNotice
+{
+  type: GenerateNoticeType
+  text: string
+}
+
 export function DiaryPage(): JSX.Element
 {
   const { date } = useParams<{ date?: string }>()
@@ -21,6 +29,9 @@ export function DiaryPage(): JSX.Element
   const [entries, set_entries] = useState<DiaryEntry[]>([])
   const [pictures, set_pictures] = useState<string[]>([])
   const [has_today, set_has_today] = useState(false)
+  const [generate_dialog_open, set_generate_dialog_open] = useState(false)
+  const [generating, set_generating] = useState(false)
+  const [generate_notice, set_generate_notice] = useState<GenerateNotice | null>(null)
   const [rotate_enabled, set_rotate_enabled] = useState(true)
   const [rotate_interval, set_rotate_interval] = useState(8)
   const [slot_a_idx, set_slot_a_idx] = useState(0)
@@ -130,13 +141,45 @@ export function DiaryPage(): JSX.Element
     }
   }
 
-  const handle_generate = async () =>
+  const handle_generate_click = () =>
   {
-    const result = await window.electronAPI.diary.generate(target_date)
-    if (result.success)
+    set_generate_dialog_open(true)
+  }
+
+  const handle_generate_confirm = async () =>
+  {
+    if (generating) return
+
+    set_generating(true)
+    set_generate_notice(null)
+    try
     {
+      const result = await window.electronAPI.diary.generate(target_date)
+      if (!result.success)
+      {
+        set_generate_notice({ type: 'error', text: '日记生成失败，请稍后重试。' })
+        return
+      }
+
       const rows = await window.electronAPI.diary.list_all()
       set_entries(rows as unknown as DiaryEntry[])
+      set_has_today(true)
+      set_generate_dialog_open(false)
+      set_generate_notice({ type: 'success', text: `${target_date} 的日记已生成，已打开 Typora 供你审核。` })
+
+      if (result.file_path)
+      {
+        await window.electronAPI.file.open_in_typora(result.file_path)
+      }
+    }
+    catch (error)
+    {
+      const error_text = error instanceof Error ? error.message : '未知错误'
+      set_generate_notice({ type: 'error', text: `日记生成失败: ${error_text}` })
+    }
+    finally
+    {
+      set_generating(false)
     }
   }
 
@@ -165,10 +208,15 @@ export function DiaryPage(): JSX.Element
       <div className={styles.sidebar}>
         <div className={styles.sidebar_header}>
           <h3>📅 日记归档</h3>
-          <MoeButton variant="primary" size="sm" onClick={handle_generate}>
+          <MoeButton variant="primary" size="sm" onClick={handle_generate_click} disabled={generating}>
             生成今日
           </MoeButton>
         </div>
+        {generate_notice && (
+          <div className={`${styles.generate_notice} ${styles[generate_notice.type]}`} role="status">
+            {generate_notice.text}
+          </div>
+        )}
         <div className={styles.month_list}>
           {months.length === 0 ? (
             <p className={styles.empty}>暂无日记</p>
@@ -264,6 +312,44 @@ export function DiaryPage(): JSX.Element
           )}
         </MoeCard>
       </div>
+
+      {generate_dialog_open && (
+        <div className={styles.modal_backdrop} role="presentation">
+          <div className={styles.generate_dialog} role="dialog" aria-modal="true" aria-labelledby="generate_dialog_title">
+            <h3 id="generate_dialog_title">
+              {has_today ? '确认覆盖当天日记？' : '生成当天日记'}
+            </h3>
+            <p>
+              {has_today
+                ? `${target_date} 已经存在日记。继续生成会用当前专注记录重新生成内容，并覆盖原来的日记文件。`
+                : `将根据 ${target_date} 的专注记录生成一篇日记。生成完成后会打开 Typora，方便你审核和修改。`}
+            </p>
+            {has_today && (
+              <p className={styles.danger_text}>
+                如果你已经手写过今天的内容，请先在 Typora 中备份或取消本次操作。
+              </p>
+            )}
+            <div className={styles.dialog_actions}>
+              <MoeButton
+                variant="ghost"
+                size="sm"
+                onClick={() => set_generate_dialog_open(false)}
+                disabled={generating}
+              >
+                取消
+              </MoeButton>
+              <MoeButton
+                variant={has_today ? 'secondary' : 'primary'}
+                size="sm"
+                onClick={handle_generate_confirm}
+                disabled={generating}
+              >
+                {generating ? '生成中...' : has_today ? '确认覆盖并生成' : '确认生成'}
+              </MoeButton>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

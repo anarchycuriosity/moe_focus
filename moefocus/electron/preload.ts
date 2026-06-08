@@ -47,6 +47,13 @@ const electron_api = {
       return () => ipcRenderer.removeListener('focus:sessionEnd', listener)
     }
   },
+  long_term_goals:
+  {
+    list: () => ipcRenderer.invoke('longTermGoal:list'),
+    create: (goal: LongTermGoalInput) => ipcRenderer.invoke('longTermGoal:create', goal),
+    update: (uuid: string, data: Partial<LongTermGoalInput>) => ipcRenderer.invoke('longTermGoal:update', uuid, data),
+    remove: (uuid: string) => ipcRenderer.invoke('longTermGoal:delete', uuid)
+  },
   diary:
   {
     generate: (date: string) => ipcRenderer.invoke('diary:generate', date),
@@ -93,6 +100,7 @@ const electron_api = {
     push: () => ipcRenderer.invoke('git:push'),
     pull: () => ipcRenderer.invoke('git:pull'),
     set_remote: (url: string) => ipcRenderer.invoke('git:setRemote', url),
+    validate_remote: (url: string, branch: string) => ipcRenderer.invoke('git:validateRemote', url, branch),
     get_remote: () => ipcRenderer.invoke('git:getRemote'),
     init_repo: () => ipcRenderer.invoke('git:initRepo'),
     sync: () => ipcRenderer.invoke('git:sync')
@@ -165,4 +173,12 @@ interface FocusInput
   date: string
 }
 
-export type { TaskInput, TodoInput, FocusInput }
+interface LongTermGoalInput
+{
+  title: string
+  deadline?: string | null
+  status?: string
+  sort_order?: number
+}
+
+export type { TaskInput, TodoInput, FocusInput, LongTermGoalInput }

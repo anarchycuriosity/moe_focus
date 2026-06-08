@@ -11,7 +11,13 @@ import { DatabaseService } from './services/DatabaseService'
 import { DiaryService } from './services/DiaryService'
 import { scheduler_service } from './services/SchedulerService'
 import { git_service } from './services/GitService'
-import { export_sessions_from_db, import_sessions_to_db, sync_diary_entries_from_files } from './services/SyncService'
+import {
+  export_long_term_goals_from_db,
+  export_sessions_from_db,
+  import_long_term_goals_to_db,
+  import_sessions_to_db,
+  sync_diary_entries_from_files
+} from './services/SyncService'
 
 let main_window: BrowserWindow | null = null
 
@@ -55,6 +61,85 @@ function create_window(): void
   }
 }
 
+async function run_startup_sync(): Promise<void>
+{
+  try
+  {
+    await git_service.init_repo()
+    const remote = await git_service.get_remote()
+    if (!remote.url)
+    {
+      console.log('[sync] startup sync skipped: remote not configured')
+      return
+    }
+
+    const branch_row = DatabaseService.instance.get('SELECT value FROM settings WHERE key = ?', ['github.branch']) as { value: string } | undefined
+    const branch = branch_row?.value || 'main'
+    const user_data_path = app.getPath('userData')
+    console.log('[sync] syncing from remote:', remote.url, 'branch:', branch)
+
+    // Export local data before sync
+    export_sessions_from_db(DatabaseService.instance, user_data_path)
+    export_long_term_goals_from_db(DatabaseService.instance, user_data_path)
+
+    const result = await git_service.sync(branch)
+
+    if (result.success)
+    {
+      // Import merged sessions into local DB
+      const imported = import_sessions_to_db(DatabaseService.instance, user_data_path)
+      if (imported > 0)
+      {
+        console.log('[sync] imported', imported, 'new sessions')
+      }
+
+      const imported_goals = import_long_term_goals_to_db(DatabaseService.instance, user_data_path)
+      if (imported_goals > 0)
+      {
+        console.log('[sync] imported', imported_goals, 'long-term goals')
+      }
+
+      // Regenerate ALL diaries from DB (now has merged sessions)
+      const dates = DatabaseService.instance.all(
+        "SELECT DISTINCT date FROM focus_sessions WHERE status = 'completed' ORDER BY date"
+      ) as Array<{ date: string }>
+      let regenerated_count = 0
+      for (const row of dates)
+      {
+        try
+        {
+          DiaryService.generate(row.date)
+          regenerated_count++
+        }
+        catch (e)
+        {
+          console.error(`[sync] diary regeneration failed for ${row.date}:`, e)
+        }
+      }
+      console.log('[sync] diaries regenerated:', regenerated_count)
+
+      // Sync diary_entries from regenerated MD files
+      const diary_synced = sync_diary_entries_from_files(DatabaseService.instance, user_data_path)
+      console.log('[sync] diary entries regenerated:', diary_synced)
+
+      // Commit and push regenerated diaries
+      if (imported > 0 || imported_goals > 0 || result.new_from_remote.length > 0)
+      {
+        await git_service.commit('sync: regenerate diaries after startup merge')
+        await git_service.push(branch)
+      }
+    }
+    else
+    {
+      console.log('[sync] startup sync failed:', result.error)
+    }
+  }
+  catch (e)
+  {
+    console.log('[sync] startup sync skipped:', e)
+  }
+}
+
 app.whenReady().then(async () =>
 {
   // Register custom protocol for local file access (bypasses file:// CSP block)
@@ -68,70 +153,9 @@ app.whenReady().then(async () =>
   await DatabaseService.instance.initialize()
   await registerAllHandlers()
 
-  // Startup sync: init repo + sync from remote if configured
-  try
-  {
-    await git_service.init_repo()
-    const remote = await git_service.get_remote()
-    if (remote.url) {
-      const branch_row = DatabaseService.instance.get('SELECT value FROM settings WHERE key = ?', ['github.branch']) as { value: string } | undefined
-      const branch = branch_row?.value || 'main'
-      const user_data_path = app.getPath('userData')
-      console.log('[sync] syncing from remote:', remote.url, 'branch:', branch)
-
-      // Export local sessions before sync
-      export_sessions_from_db(DatabaseService.instance, user_data_path)
-
-      const result = await git_service.sync(branch)
-
-      if (result.success)
-      {
-        // Import merged sessions into local DB
-        const imported = import_sessions_to_db(DatabaseService.instance, user_data_path)
-        if (imported > 0)
-        {
-          console.log('[sync] imported', imported, 'new sessions')
-        }
-
-        // Regenerate ALL diaries from DB (now has merged sessions)
-        const dates = DatabaseService.instance.all(
-          "SELECT DISTINCT date FROM focus_sessions WHERE status = 'completed' ORDER BY date"
-        ) as Array<{ date: string }>
-        let regenerated_count = 0
-        for (const row of dates)
-        {
-          try
-          {
-            DiaryService.generate(row.date)
-            regenerated_count++
-          }
-          catch (e)
-          {
-            console.error(`[sync] diary regeneration failed for ${row.date}:`, e)
-          }
-        }
-        console.log('[sync] diaries regenerated:', regenerated_count)
-
-        // Sync diary_entries from regenerated MD files
-        const diary_synced = sync_diary_entries_from_files(DatabaseService.instance, user_data_path)
-        console.log('[sync] diary entries regenerated:', diary_synced)
-
-        // Commit and push regenerated diaries
-        if (imported > 0 || result.new_from_remote.length > 0)
-        {
-          await git_service.commit('sync: regenerate diaries after startup merge')
-          await git_service.push(branch)
-        }
-      }
-    }
-  }
-  catch (e)
-  {
-    console.log('[sync] startup sync skipped:', e)
-  }
-
   scheduler_service.start()
   create_window()
+  run_startup_sync()
 
   app.on('activate', () =>
   {
