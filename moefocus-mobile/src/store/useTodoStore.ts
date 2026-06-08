@@ -1,6 +1,7 @@
 // ===== TODO Store =====
 import { create } from 'zustand'
 import { DatabaseService } from '../services/DatabaseService'
+import type { TodoItem } from '../types/models'
 import dayjs from 'dayjs'
 
 interface TodoStore
@@ -23,19 +24,19 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
   {
     const target = date || get().date
     set({ loading: true, date: target })
-    const rows = await DatabaseService.get_all(
+    const rows = await DatabaseService.get_all<TodoItem>(
       `SELECT ti.*, t.title as task_title, t.color as task_color
        FROM todo_items ti
        LEFT JOIN tasks t ON ti.task_id = t.id
        WHERE ti.date = ? ORDER BY ti.sort_order`,
       [target]
     )
-    set({ items: rows as unknown as TodoItem[], loading: false })
+    set({ items: rows, loading: false })
   },
 
   add_todo: async (task_id, custom_title) =>
   {
-    const max_row = await DatabaseService.get_one(
+    const max_row = await DatabaseService.get_one<{ max_ord: number }>(
       'SELECT COALESCE(MAX(sort_order), -1) as max_ord FROM todo_items WHERE date = ?',
       [get().date]
     )
@@ -45,12 +46,12 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
       'INSERT INTO todo_items (task_id, custom_title, date, sort_order) VALUES (?, ?, ?, ?)',
       [task_id || null, custom_title || null, get().date, next]
     )
-    const row = await DatabaseService.get_one(
+    const row = await DatabaseService.get_one<TodoItem>(
       `SELECT ti.*, t.title as task_title, t.color as task_color
        FROM todo_items ti LEFT JOIN tasks t ON ti.task_id = t.id
        WHERE ti.id = ?`, [last_id]
     )
-    if (row) set({ items: [...get().items, row as unknown as TodoItem] })
+    if (row) set({ items: [...get().items, row] })
   },
 
   remove_todo: async (id) =>
@@ -65,7 +66,7 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
     if (!item) return
     const new_status = item.status === 'done' ? 'pending' : 'done'
     await DatabaseService.run(
-      'UPDATE todo_items SET status = ?, completed_at = ? WHERE id = ?',
+      "UPDATE todo_items SET status = ?, completed_at = ?, updated_at = datetime('now') WHERE id = ?",
       [new_status, new_status === 'done' ? dayjs().format('YYYY-MM-DD HH:mm:ss') : null, id]
     )
     set({

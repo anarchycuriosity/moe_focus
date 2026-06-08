@@ -1,6 +1,7 @@
 // ===== 专注计时 Store =====
 import { create } from 'zustand'
 import { DatabaseService } from '../services/DatabaseService'
+import { create_uuid } from '../services/id_service'
 import dayjs from 'dayjs'
 
 export type TimerPhase = 'idle' | 'focus' | 'rest' | 'paused'
@@ -91,9 +92,10 @@ export async function save_focus_abandon(session_id: number): Promise<void>
 export async function create_focus_session(subject: string, planned_min: number, rest_sec: number): Promise<number>
 {
   const today = dayjs().format('YYYY-MM-DD')
+  const uuid = create_uuid()
   return DatabaseService.run(
-    `INSERT INTO focus_sessions (subject, planned_duration_min, rest_duration_sec, date, status)
-     VALUES (?, ?, ?, ?, 'running')`,
-    [subject, planned_min, rest_sec, today]
+    `INSERT INTO focus_sessions (uuid, subject, planned_duration_min, rest_duration_sec, date, status)
+     VALUES (?, ?, ?, ?, ?, 'running')`,
+    [uuid, subject, planned_min, rest_sec, today]
   )
 }

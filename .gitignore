@@ -1,6 +1,7 @@
 node_modules/
 out/
 dist/
+dist-mobile/
 .expo/
 *.db
 *.db-wal

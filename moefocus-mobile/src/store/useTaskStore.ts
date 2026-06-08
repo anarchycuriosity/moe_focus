@@ -1,6 +1,7 @@
 // ===== 任务库 Store =====
 import { create } from 'zustand'
 import { DatabaseService } from '../services/DatabaseService'
+import type { Task } from '../types/models'
 
 interface TaskStore
 {
@@ -18,10 +19,10 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   load_tasks: async () =>
   {
     set({ loading: true })
-    const rows = await DatabaseService.get_all(
+    const rows = await DatabaseService.get_all<Task>(
       'SELECT * FROM tasks WHERE is_active = 1 ORDER BY sort_order'
     )
-    set({ tasks: rows as unknown as Task[], loading: false })
+    set({ tasks: rows, loading: false })
   },
 
   add_task: async (title) =>
@@ -29,10 +30,10 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     const last_id = await DatabaseService.run(
       'INSERT INTO tasks (title) VALUES (?)', [title]
     )
-    const row = await DatabaseService.get_one(
+    const row = await DatabaseService.get_one<Task>(
       'SELECT * FROM tasks WHERE id = ?', [last_id]
     )
-    if (row) set({ tasks: [...get().tasks, row as unknown as Task] })
+    if (row) set({ tasks: [...get().tasks, row] })
   },
 
   remove_task: async (id) =>

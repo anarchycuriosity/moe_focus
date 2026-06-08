@@ -25,30 +25,56 @@ export function FocusScreen(): JSX.Element
 
   const clear_timer = useCallback(() =>
   {
-    if (interval_ref.current) { clearInterval(interval_ref.current); interval_ref.current = null }
+    if (interval_ref.current)
+    {
+      clearInterval(interval_ref.current)
+      interval_ref.current = null
+    }
   }, [])
+
+  const start_interval = useCallback(() =>
+  {
+    clear_timer()
+    interval_ref.current = setInterval(() =>
+    {
+      const state = useFocusStore.getState()
+      if (state.remaining_seconds > 1)
+      {
+        state.tick(state.remaining_seconds - 1)
+        return
+      }
+
+      state.tick(0)
+      if (state.phase === 'focus')
+      {
+        if (state.session_id)
+        {
+          save_focus_complete(state.session_id, state.focus_duration_min * 60)
+        }
+
+        if (state.rest_duration_min > 0)
+        {
+          state.switch_to_rest()
+        }
+        else
+        {
+          clear_timer()
+          state.end_session()
+        }
+      }
+      else
+      {
+        clear_timer()
+        state.end_session()
+      }
+    }, 1000)
+  }, [clear_timer])
 
   const start = async () =>
   {
     const fid = await create_focus_session(subject || '专注', focus_duration_min, rest_duration_min * 60)
     start_session(fid)
-    interval_ref.current = setInterval(() =>
-    {
-      const r = useFocusStore.getState().remaining_seconds
-      if (r <= 1)
-      {
-        useFocusStore.getState().tick(0)
-        clear_timer()
-        const state = useFocusStore.getState()
-        save_focus_complete(state.session_id!, state.focus_duration_min * 60)
-        if (state.rest_duration_min > 0) switch_to_rest()
-        else end_session()
-      }
-      else
-      {
-        useFocusStore.getState().tick(r - 1)
-      }
-    }, 1000)
+    start_interval()
   }
 
   const pause = async () =>
@@ -60,12 +86,7 @@ export function FocusScreen(): JSX.Element
   const resume = () =>
   {
     resume_session()
-    interval_ref.current = setInterval(() =>
-    {
-      const r = useFocusStore.getState().remaining_seconds
-      if (r <= 1) { clear_timer(); switch_to_rest() }
-      else useFocusStore.getState().tick(r - 1)
-    }, 1000)
+    start_interval()
   }
 
   const stop = async () =>

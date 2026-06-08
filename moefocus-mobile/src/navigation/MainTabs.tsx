@@ -3,6 +3,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { TodayScreen } from '../screens/TodayScreen'
 import { FocusScreen } from '../screens/FocusScreen'
 import { StatsScreen } from '../screens/StatsScreen'
+import { LongTermGoalsScreen } from '../screens/long_term_goals_screen'
+import { DiaryScreen } from '../screens/diary_screen'
 import { SettingsScreen } from '../screens/SettingsScreen'
 import { moe_colors } from '../styles/theme'
 
@@ -74,6 +76,24 @@ export function MainTabs(): JSX.Element
           title: '统计',
           tabBarIcon: ({ focused }) => <TabIcon emoji="📊" focused={focused} />,
           headerTitle: '统计'
+        }}
+      />
+      <Tab.Screen
+        name="Goals"
+        component={LongTermGoalsScreen}
+        options={{
+          title: '长期',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="🧭" focused={focused} />,
+          headerTitle: '长期任务'
+        }}
+      />
+      <Tab.Screen
+        name="Diary"
+        component={DiaryScreen}
+        options={{
+          title: '日记',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="📔" focused={focused} />,
+          headerTitle: '日记'
         }}
       />
       <Tab.Screen

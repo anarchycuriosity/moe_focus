@@ -33,6 +33,7 @@ export interface TodoItem
 export interface FocusSession
 {
   id: number
+  uuid: string | null
   todo_id: number | null
   subject: string
   planned_duration_min: number
@@ -56,6 +57,19 @@ export interface DiaryEntry
   mood: string | null
   git_committed: number
   git_pushed: number
+  created_at: string
+  updated_at: string
+}
+
+export interface LongTermGoal
+{
+  id: number
+  uuid: string
+  title: string
+  deadline: string | null
+  status: 'active' | 'done'
+  sort_order: number
+  is_deleted: number
   created_at: string
   updated_at: string
 }
@@ -94,4 +108,15 @@ export interface SyncManifest
     diary_entries: string
     settings: string
   }
+}
+
+export interface SyncResult
+{
+  success: boolean
+  uploaded_files: string[]
+  downloaded_files: string[]
+  imported_sessions: number
+  imported_goals: number
+  synced_diaries: number
+  error?: string
 }

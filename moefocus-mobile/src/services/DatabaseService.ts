@@ -1,11 +1,8 @@
-// ===== 数据库服务 — expo-sqlite 封装 =====
-// 镜像桌面端的 DatabaseService，API 适配 React Native
-
 import * as SQLite from 'expo-sqlite'
 
 let db: SQLite.SQLiteDatabase | null = null
 
-const SCHEMA = `
+const schema = `
 CREATE TABLE IF NOT EXISTS tasks (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   title         TEXT NOT NULL,
@@ -31,25 +28,28 @@ CREATE TABLE IF NOT EXISTS todo_items (
 );
 
 CREATE TABLE IF NOT EXISTS focus_sessions (
-  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-  todo_id             INTEGER REFERENCES todo_items(id) ON DELETE SET NULL,
-  subject             TEXT,
+  id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+  todo_id              INTEGER REFERENCES todo_items(id) ON DELETE SET NULL,
+  subject              TEXT,
   planned_duration_min INTEGER NOT NULL,
-  actual_duration_sec INTEGER DEFAULT 0,
-  rest_duration_sec   INTEGER DEFAULT 0,
-  status              TEXT DEFAULT 'running',
-  started_at          TEXT DEFAULT (datetime('now')),
-  ended_at            TEXT,
-  date                TEXT NOT NULL
+  actual_duration_sec  INTEGER DEFAULT 0,
+  rest_duration_sec    INTEGER DEFAULT 0,
+  status               TEXT DEFAULT 'running',
+  uuid                 TEXT UNIQUE,
+  started_at           TEXT DEFAULT (datetime('now')),
+  ended_at             TEXT,
+  date                 TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS diary_entries (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
   date            TEXT NOT NULL UNIQUE,
+  file_path       TEXT,
   summary_text    TEXT,
   reflection_text TEXT,
   mood            TEXT,
-  git_synced      INTEGER DEFAULT 0,
+  git_committed   INTEGER DEFAULT 0,
+  git_pushed      INTEGER DEFAULT 0,
   created_at      TEXT DEFAULT (datetime('now')),
   updated_at      TEXT DEFAULT (datetime('now'))
 );
@@ -60,61 +60,114 @@ CREATE TABLE IF NOT EXISTS settings (
   updated_at  TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS long_term_goals (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  uuid        TEXT NOT NULL UNIQUE,
+  title       TEXT NOT NULL,
+  deadline    TEXT,
+  status      TEXT DEFAULT 'active',
+  sort_order  INTEGER DEFAULT 0,
+  is_deleted  INTEGER DEFAULT 0,
+  created_at  TEXT DEFAULT (datetime('now')),
+  updated_at  TEXT DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_todo_date ON todo_items(date);
 CREATE INDEX IF NOT EXISTS idx_focus_date ON focus_sessions(date);
-`;
+CREATE INDEX IF NOT EXISTS idx_focus_uuid ON focus_sessions(uuid);
+CREATE INDEX IF NOT EXISTS idx_diary_date ON diary_entries(date);
+CREATE INDEX IF NOT EXISTS idx_long_term_goals_uuid ON long_term_goals(uuid);
+`
 
-const DEFAULT_SETTINGS: Array<[string, string]> = [
+const default_settings: Array<[string, string]> = [
   ['focus.defaultDuration', '25'],
   ['focus.defaultRestDuration', '5'],
+  ['focus.dailyGoal', '120'],
   ['diary.autoGenerateTime', '23:00'],
-  ['email.reminderEnabled', 'false'],
   ['github.remoteUrl', ''],
-  ['github.branch', 'main']
-];
+  ['github.owner', ''],
+  ['github.repo', ''],
+  ['github.branch', 'main'],
+  ['github.token', ''],
+  ['ui.theme', 'sakura'],
+  ['ui.darkMode', 'false']
+]
+
+async function migrate(db_handle: SQLite.SQLiteDatabase): Promise<void>
+{
+  const columns = await db_handle.getAllAsync<{ name: string }>('PRAGMA table_info(focus_sessions)')
+  if (!columns.some((column) => column.name === 'uuid'))
+  {
+    await db_handle.execAsync('ALTER TABLE focus_sessions ADD COLUMN uuid TEXT')
+    await db_handle.execAsync('CREATE UNIQUE INDEX IF NOT EXISTS idx_focus_uuid ON focus_sessions(uuid)')
+  }
+}
 
 async function get_db(): Promise<SQLite.SQLiteDatabase>
 {
   if (!db)
   {
     db = await SQLite.openDatabaseAsync('moefocus.db')
-    await db.execAsync(SCHEMA)
+    await db.execAsync(schema)
+    await migrate(db)
 
-    // Apply default settings
-    for (const [key, value] of DEFAULT_SETTINGS)
+    for (const [key, value] of default_settings)
     {
       await db.runAsync(
         'INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
-        [key, value]
+        key,
+        value
       )
     }
   }
+
   return db
 }
 
 export const DatabaseService = {
-  async get_all(sql: string, params: unknown[] = []): Promise<Record<string, unknown>[]>
+  async get_all<T = Record<string, unknown>>(sql: string, params: SQLite.SQLiteBindValue[] = []): Promise<T[]>
   {
-    const d = await get_db()
-    return d.getAllAsync(sql, ...params) as Promise<Record<string, unknown>[]>
+    const db_handle = await get_db()
+    return db_handle.getAllAsync<T>(sql, ...params)
   },
 
-  async get_one(sql: string, params: unknown[] = []): Promise<Record<string, unknown> | null>
+  async get_one<T = Record<string, unknown>>(sql: string, params: SQLite.SQLiteBindValue[] = []): Promise<T | null>
   {
-    const d = await get_db()
-    return d.getFirstAsync(sql, ...params) as Promise<Record<string, unknown> | null>
+    const db_handle = await get_db()
+    return db_handle.getFirstAsync<T>(sql, ...params)
   },
 
-  async run(sql: string, params: unknown[] = []): Promise<number>
+  async run(sql: string, params: SQLite.SQLiteBindValue[] = []): Promise<number>
   {
-    const d = await get_db()
-    const result = await d.runAsync(sql, ...params)
+    const db_handle = await get_db()
+    const result = await db_handle.runAsync(sql, ...params)
     return result.lastInsertRowId
   },
 
   async exec(sql: string): Promise<void>
   {
-    const d = await get_db()
-    await d.execAsync(sql)
+    const db_handle = await get_db()
+    await db_handle.execAsync(sql)
+  },
+
+  async get_settings(): Promise<Record<string, string>>
+  {
+    const rows = await this.get_all<{ key: string; value: string }>('SELECT key, value FROM settings')
+    const settings: Record<string, string> = {}
+    for (const row of rows)
+    {
+      settings[row.key] = row.value
+    }
+    return settings
+  },
+
+  async set_setting(key: string, value: string): Promise<void>
+  {
+    await this.run(
+      `INSERT INTO settings (key, value)
+       VALUES (?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = ?, updated_at = datetime('now')`,
+      [key, value, value]
+    )
   }
 }

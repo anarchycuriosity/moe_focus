@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTaskStore } from '../store/useTaskStore'
 import { useTodoStore } from '../store/useTodoStore'
 import { moe_colors, spacing, radius, font_size } from '../styles/theme'
+import type { Task } from '../types/models'
 
 export function TodayScreen(): JSX.Element
 {
