@@ -6,6 +6,7 @@ import dayjs from 'dayjs'
 export function useFocusTimer()
 {
   const interval_ref = useRef<ReturnType<typeof setInterval> | null>(null)
+  const phase_end_time_ref = useRef<number | null>(null)
 
   const clear = () =>
   {
@@ -14,13 +15,24 @@ export function useFocusTimer()
       clearInterval(interval_ref.current)
       interval_ref.current = null
     }
+    phase_end_time_ref.current = null
+  }
+
+  const arm_timer = (remaining_seconds: number) =>
+  {
+    phase_end_time_ref.current = Date.now() + remaining_seconds * 1000
+    interval_ref.current = setInterval(tick, 1000)
   }
 
   const tick = () =>
   {
     const s = useFocusStore.getState()
-    const r = s.remaining_seconds
-    if (r <= 1)
+    const phase_end_time = phase_end_time_ref.current
+    const remaining = phase_end_time
+      ? Math.max(0, Math.ceil((phase_end_time - Date.now()) / 1000))
+      : s.remaining_seconds
+
+    if (remaining <= 0)
     {
       clear()
       s.tick(0)
@@ -28,7 +40,7 @@ export function useFocusTimer()
     }
     else
     {
-      s.tick(r - 1)
+      s.tick(remaining)
     }
   }
 
@@ -60,7 +72,7 @@ export function useFocusTimer()
       date: today
     })
     s.start_session(session.id)
-    interval_ref.current = setInterval(tick, 1000)
+    arm_timer(useFocusStore.getState().remaining_seconds)
   }
 
   const pause = async () =>
@@ -85,7 +97,7 @@ export function useFocusTimer()
       date: today
     })
     s.continue_session(session.id)
-    interval_ref.current = setInterval(tick, 1000)
+    arm_timer(useFocusStore.getState().remaining_seconds)
   }
 
   const stop = async () =>
