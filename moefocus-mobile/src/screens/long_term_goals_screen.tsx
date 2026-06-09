@@ -6,6 +6,7 @@ import { DatabaseService } from '../services/DatabaseService'
 import { create_uuid } from '../services/id_service'
 import { font_size, moe_colors, radius, spacing } from '../styles/theme'
 import type { LongTermGoal } from '../types/models'
+import { ScreenBackground } from '../components/screen_background'
 
 type GoalFilter = 'active' | 'all' | 'done'
 
@@ -90,7 +91,7 @@ export function LongTermGoalsScreen(): JSX.Element
   const overdue_count = goals.filter((goal) => goal.status !== 'done' && get_deadline_days(goal.deadline) < 0).length
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
+    <ScreenBackground page_key="goals" content_style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
       <View style={styles.summary_row}>
         <SummaryItem label="进行中" value={active_count} />
         <SummaryItem label="已逾期" value={overdue_count} />
@@ -112,7 +113,7 @@ export function LongTermGoalsScreen(): JSX.Element
           value={deadline}
           onChangeText={set_deadline}
         />
-        <TouchableOpacity style={styles.add_btn} onPress={add_goal}>
+        <TouchableOpacity style={styles.add_btn} onPress={add_goal} activeOpacity={0.75}>
           <Text style={styles.add_btn_text}>添加任务</Text>
         </TouchableOpacity>
       </View>
@@ -123,6 +124,7 @@ export function LongTermGoalsScreen(): JSX.Element
             key={item}
             style={[styles.filter_btn, filter === item && styles.filter_active]}
             onPress={() => set_filter(item)}
+            activeOpacity={0.75}
           >
             <Text style={[styles.filter_text, filter === item && styles.filter_text_active]}>
               {item === 'active' ? '进行中' : item === 'all' ? '全部' : '已完成'}
@@ -143,6 +145,7 @@ export function LongTermGoalsScreen(): JSX.Element
               <TouchableOpacity
                 style={[styles.check_btn, item.status === 'done' && styles.check_done]}
                 onPress={() => toggle_goal(item)}
+                activeOpacity={0.75}
               >
                 <Text style={styles.check_text}>{item.status === 'done' ? '✓' : ''}</Text>
               </TouchableOpacity>
@@ -153,7 +156,7 @@ export function LongTermGoalsScreen(): JSX.Element
               <Text style={[styles.badge, styles[state]]}>
                 {get_deadline_label(item.deadline, days, item.status)}
               </Text>
-              <TouchableOpacity onPress={() => delete_goal(item)}>
+              <TouchableOpacity onPress={() => delete_goal(item)} activeOpacity={0.75}>
                 <Text style={styles.delete_text}>删除</Text>
               </TouchableOpacity>
             </View>
@@ -161,7 +164,7 @@ export function LongTermGoalsScreen(): JSX.Element
         }}
         ListEmptyComponent={<Text style={styles.empty_text}>暂无长期任务</Text>}
       />
-    </View>
+    </ScreenBackground>
   )
 }
 
@@ -207,7 +210,7 @@ function get_deadline_state(days: number, status: string): 'state_done' | 'state
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: moe_colors.cream, paddingHorizontal: spacing.md },
+  container: { flex: 1, paddingHorizontal: spacing.md },
   summary_row: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
   summary_card: {
     flex: 1, backgroundColor: moe_colors.white, borderRadius: radius.md,

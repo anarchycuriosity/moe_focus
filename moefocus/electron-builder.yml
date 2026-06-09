@@ -5,6 +5,9 @@ directories:
   buildResources: resources
 files:
   - out/**/*
+  - electron/database/schema.sql
+  - wallpapers/**/*
+  - diary-pictures/**/*
 win:
   signAndEditExecutable: false
   target:

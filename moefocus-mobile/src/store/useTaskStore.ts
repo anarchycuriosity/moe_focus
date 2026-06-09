@@ -27,13 +27,10 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
   add_task: async (title) =>
   {
-    const last_id = await DatabaseService.run(
+    await DatabaseService.run(
       'INSERT INTO tasks (title) VALUES (?)', [title]
     )
-    const row = await DatabaseService.get_one<Task>(
-      'SELECT * FROM tasks WHERE id = ?', [last_id]
-    )
-    if (row) set({ tasks: [...get().tasks, row] })
+    await get().load_tasks()
   },
 
   remove_task: async (id) =>

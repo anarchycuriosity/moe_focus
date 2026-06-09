@@ -90,7 +90,15 @@ const default_settings: Array<[string, string]> = [
   ['github.branch', 'main'],
   ['github.token', ''],
   ['ui.theme', 'sakura'],
-  ['ui.darkMode', 'false']
+  ['ui.darkMode', 'false'],
+  ['ui.wallpaper.default', ''],
+  ['ui.wallpaper.today', ''],
+  ['ui.wallpaper.focus', ''],
+  ['ui.wallpaper.statistics', ''],
+  ['ui.wallpaper.goals', ''],
+  ['ui.wallpaper.diary', ''],
+  ['ui.wallpaper.settings', ''],
+  ['ui.photoFrame.url', '']
 ]
 
 type Sqlite_value = SQLite.SQLStatementArg
@@ -101,6 +109,11 @@ function split_sql_script(sql: string): string[]
     .split(';')
     .map((statement) => statement.trim())
     .filter((statement) => statement.length > 0)
+}
+
+function is_insert_sql(sql: string): boolean
+{
+  return sql.trim().toUpperCase().startsWith('INSERT')
 }
 
 async function execute_sql(sql: string, params: Sqlite_value[] = []): Promise<SQLite.ResultSet>
@@ -175,7 +188,18 @@ export const DatabaseService = {
   async run(sql: string, params: Sqlite_value[] = []): Promise<number>
   {
     const result = await execute_sql(sql, params)
-    return result.insertId ?? 0
+    if (typeof result.insertId === 'number' && result.insertId > 0)
+    {
+      return result.insertId
+    }
+
+    if (is_insert_sql(sql))
+    {
+      const row = await this.get_one<{ id: number }>('SELECT last_insert_rowid() as id')
+      return row?.id ?? 0
+    }
+
+    return result.rowsAffected ?? 0
   },
 
   async exec(sql: string): Promise<void>

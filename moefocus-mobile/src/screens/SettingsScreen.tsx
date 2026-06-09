@@ -8,10 +8,13 @@ import {
   TouchableOpacity,
   View
 } from 'react-native'
+import * as FileSystem from 'expo-file-system'
+import * as ImagePicker from 'expo-image-picker'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { DatabaseService } from '../services/DatabaseService'
 import { sync_with_github } from '../services/sync_service'
 import { font_size, moe_colors, radius, spacing } from '../styles/theme'
+import { ScreenBackground } from '../components/screen_background'
 
 export function SettingsScreen(): JSX.Element
 {
@@ -36,6 +39,37 @@ export function SettingsScreen(): JSX.Element
     set_settings((prev) => ({ ...prev, [key]: value }))
   }
 
+  const pick_local_image = async (key: string) =>
+  {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (!permission.granted)
+    {
+      Alert.alert('需要相册权限', '请允许 MoeFocus 访问相册，否则无法选择本地壁纸。')
+      return
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false,
+      quality: 0.92
+    })
+
+    if (result.canceled || result.assets.length === 0)
+    {
+      return
+    }
+
+    const image_uri = result.assets[0].uri
+    const image_dir = `${FileSystem.documentDirectory}wallpapers`
+    await FileSystem.makeDirectoryAsync(image_dir, { intermediates: true })
+
+    const ext_match = image_uri.match(/\.(png|jpg|jpeg|webp)$/i)
+    const ext = ext_match ? ext_match[1].toLowerCase() : 'jpg'
+    const file_path = `${image_dir}/${key.replace(/\./g, '_')}_${Date.now()}.${ext}`
+    await FileSystem.copyAsync({ from: image_uri, to: file_path })
+    await update_setting(key, file_path)
+  }
+
   const run_sync = async () =>
   {
     set_syncing(true)
@@ -56,7 +90,8 @@ export function SettingsScreen(): JSX.Element
   }
 
   return (
-    <ScrollView style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
+    <ScreenBackground page_key="settings">
+      <ScrollView style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
       <Text style={styles.section_title}>计时默认值</Text>
       <View style={styles.card}>
         <SettingInput
@@ -116,14 +151,101 @@ export function SettingsScreen(): JSX.Element
         />
       </View>
 
-      <TouchableOpacity style={[styles.sync_btn, syncing && styles.sync_btn_disabled]} onPress={run_sync} disabled={syncing}>
+      <Text style={styles.section_title}>壁纸与相框</Text>
+      <View style={styles.card}>
+        <Text style={styles.hint}>
+          手机端 release 使用图片 URL 保存自定义外观。可以填写私有仓库 raw 文件地址、对象存储地址，或其他手机能访问的 HTTPS 图片地址。
+        </Text>
+        <SettingInput
+          label="默认壁纸 URL"
+          value={settings['ui.wallpaper.default'] || ''}
+          placeholder="https://example.com/wallpaper.png"
+          onChangeText={(value) => update_setting('ui.wallpaper.default', value)}
+        />
+        <ImageActions
+          onPick={() => pick_local_image('ui.wallpaper.default')}
+          onClear={() => update_setting('ui.wallpaper.default', '')}
+        />
+        <SettingInput
+          label="今日页壁纸 URL"
+          value={settings['ui.wallpaper.today'] || ''}
+          onChangeText={(value) => update_setting('ui.wallpaper.today', value)}
+        />
+        <ImageActions
+          onPick={() => pick_local_image('ui.wallpaper.today')}
+          onClear={() => update_setting('ui.wallpaper.today', '')}
+        />
+        <SettingInput
+          label="专注页壁纸 URL"
+          value={settings['ui.wallpaper.focus'] || ''}
+          onChangeText={(value) => update_setting('ui.wallpaper.focus', value)}
+        />
+        <ImageActions
+          onPick={() => pick_local_image('ui.wallpaper.focus')}
+          onClear={() => update_setting('ui.wallpaper.focus', '')}
+        />
+        <SettingInput
+          label="统计页壁纸 URL"
+          value={settings['ui.wallpaper.statistics'] || ''}
+          onChangeText={(value) => update_setting('ui.wallpaper.statistics', value)}
+        />
+        <ImageActions
+          onPick={() => pick_local_image('ui.wallpaper.statistics')}
+          onClear={() => update_setting('ui.wallpaper.statistics', '')}
+        />
+        <SettingInput
+          label="长期任务页壁纸 URL"
+          value={settings['ui.wallpaper.goals'] || ''}
+          onChangeText={(value) => update_setting('ui.wallpaper.goals', value)}
+        />
+        <ImageActions
+          onPick={() => pick_local_image('ui.wallpaper.goals')}
+          onClear={() => update_setting('ui.wallpaper.goals', '')}
+        />
+        <SettingInput
+          label="日记页壁纸 URL"
+          value={settings['ui.wallpaper.diary'] || ''}
+          onChangeText={(value) => update_setting('ui.wallpaper.diary', value)}
+        />
+        <ImageActions
+          onPick={() => pick_local_image('ui.wallpaper.diary')}
+          onClear={() => update_setting('ui.wallpaper.diary', '')}
+        />
+        <SettingInput
+          label="设置页壁纸 URL"
+          value={settings['ui.wallpaper.settings'] || ''}
+          onChangeText={(value) => update_setting('ui.wallpaper.settings', value)}
+        />
+        <ImageActions
+          onPick={() => pick_local_image('ui.wallpaper.settings')}
+          onClear={() => update_setting('ui.wallpaper.settings', '')}
+        />
+        <SettingInput
+          label="日记相框图片 URL"
+          value={settings['ui.photoFrame.url'] || ''}
+          placeholder="https://example.com/photo-frame.jpg"
+          onChangeText={(value) => update_setting('ui.photoFrame.url', value)}
+        />
+        <ImageActions
+          onPick={() => pick_local_image('ui.photoFrame.url')}
+          onClear={() => update_setting('ui.photoFrame.url', '')}
+        />
+      </View>
+
+      <TouchableOpacity
+        style={[styles.sync_btn, syncing && styles.sync_btn_disabled]}
+        onPress={run_sync}
+        disabled={syncing}
+        activeOpacity={0.75}
+      >
         <Text style={styles.sync_btn_text}>{syncing ? '同步中...' : '同步到 GitHub'}</Text>
       </TouchableOpacity>
       {sync_status ? <Text style={styles.sync_status}>{sync_status}</Text> : null}
 
       <Text style={styles.version_text}>MoeFocus Mobile v1.1.0</Text>
       <View style={{ height: 48 }} />
-    </ScrollView>
+      </ScrollView>
+    </ScreenBackground>
   )
 }
 
@@ -159,8 +281,28 @@ function SettingInput({
   )
 }
 
+function ImageActions({
+  onPick,
+  onClear
+}: {
+  onPick: () => void
+  onClear: () => void
+}): JSX.Element
+{
+  return (
+    <View style={styles.image_actions}>
+      <TouchableOpacity style={styles.image_action_btn} onPress={onPick} activeOpacity={0.75}>
+        <Text style={styles.image_action_text}>从相册选择</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={[styles.image_action_btn, styles.clear_btn]} onPress={onClear} activeOpacity={0.75}>
+        <Text style={[styles.image_action_text, styles.clear_text]}>恢复默认</Text>
+      </TouchableOpacity>
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: moe_colors.cream, paddingHorizontal: spacing.md },
+  container: { flex: 1, paddingHorizontal: spacing.md },
   section_title: {
     fontSize: font_size.sm, fontWeight: '700', color: moe_colors.text_light,
     marginBottom: spacing.sm, marginTop: spacing.lg
@@ -176,6 +318,14 @@ const styles = StyleSheet.create({
     color: moe_colors.text, fontSize: font_size.md, backgroundColor: 'rgba(255,183,197,0.08)',
     borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 9
   },
+  image_actions: { flexDirection: 'row', gap: spacing.sm, marginTop: -spacing.sm, marginBottom: spacing.md },
+  image_action_btn: {
+    flex: 1, backgroundColor: 'rgba(201,169,220,0.18)', borderRadius: radius.sm,
+    borderWidth: 1, borderColor: moe_colors.lavender, paddingVertical: 10, alignItems: 'center'
+  },
+  clear_btn: { backgroundColor: 'rgba(255,255,255,0.72)', borderColor: moe_colors.border },
+  image_action_text: { color: moe_colors.lavender_dark, fontSize: font_size.sm, fontWeight: '800' },
+  clear_text: { color: moe_colors.text_light },
   sync_btn: {
     backgroundColor: moe_colors.lavender, borderRadius: radius.md,
     paddingVertical: 14, alignItems: 'center', marginTop: spacing.md

@@ -342,7 +342,7 @@ fs.writeFileSync(path, buffer)    // 写入磁盘
 
 ---
 
-## 六、数据同步：Git 作为分布式存储
+## 六、数据同步：Git + UUID 去重的分布式存储
 
 ### 6.1 核心思路
 
@@ -353,35 +353,107 @@ fs.writeFileSync(path, buffer)    // 写入磁盘
 
 MoeFocus 不需要服务器，利用 GitHub 仓库作为「数据中转站」：
 ```
-PC-A → git push → GitHub Repo → git pull → PC-B
+PC-A → git push → GitHub Repo → git fetch + merge → PC-B
 ```
 
-### 6.2 JSON 导出格式
+但简单的 git pull/push 有严重问题：两台 PC 独立生成同一天的日记后 push，会产生合并冲突（merge conflict），且冲突发生在机器生成的 Markdown 文件中，手动解决极其痛苦。
 
-SQLite 数据库无法直接做 git diff（二进制文件），所以导出为 JSON：
+所以 MoeFocus 的同步策略是：**源数据（JSON）用 UUID 去重合并，派生数据（日记 MD）从数据库重新生成**。
+
+### 6.2 同步的数据类型
+
+同步涉及两类数据，处理方式截然不同：
+
+**A. 源数据 — focus_sessions.json (UUID 去重合并)**
+
+每条专注会话有全局唯一的 UUID (`crypto.randomUUID()`)。JSON 格式是以 UUID 为 key 的字典，而非数组：
 
 ```json
-// data/tasks.json
-[
-  {"id":1,"title":"学日语","category":"学习","color":"#FFB7C5"},
-  {"id":2,"title":"写代码","category":"工作","color":"#C9A9DC"}
-]
-
 // data/focus_sessions.json
-[
-  {"id":1,"subject":"学日语","date":"2026-05-30","actual_duration_sec":1500}
-]
+{
+  "a1b2c3d4-...": { "subject": "学日语", "date": "2026-05-30", "actual_duration_sec": 1500, ... },
+  "e5f6g7h8-...": { "subject": "写代码", "date": "2026-05-30", "actual_duration_sec": 3600, ... }
+}
 ```
 
-JSON 可以 diff，可以看到具体哪些行变了。如果两台 PC 都修改了同一行，Git 会标记冲突，由用户选择保留哪个版本。
+合并时使用 `{ ...remote_json, ...local_json }` 的浅合并 —— 同 UUID 以本地为准，新 UUID 自动追加。这样无论两台 PC 各自生成了多少会话，合并后都是完整的并集。
 
-### 6.3 同步时机
+**B. 派生数据 — sums/*.md (从数据库重新生成)**
+
+日记 Markdown 文件是从 `focus_sessions` 表 **派生** 的输出，不是源数据。因此同步流程中：
+- 导入远程会话到 SQLite → 调用 `DiaryService.generate()` 逐日重新生成日记
+- **不对 MD 文件做文本合并** —— 之前尝试的语义合并（累加时间、合并事项）会导致重复同步时数据翻倍
+
+### 6.3 完整同步流程
 
 ```
-应用启动 → git pull → 导入 JSON → 正常使用 → 应用关闭 → 导出 JSON → git commit → git push
+┌─ 1. export ───────────────────────────────────────────────────┐
+│  DatabaseService 查询所有 completed 会话                        │
+│  → 导出为 data/focus_sessions.json (UUID → 会话 的映射)         │
+└────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─ 2. fetch + reset ────────────────────────────────────────────┐
+│  git fetch origin                                              │
+│  → git reset --hard origin/main (将本地 git 历史对齐到远程 HEAD) │
+│  → 本地数据已在内存快照中保护，reset 只清 git 历史不丢数据       │
+│  → 之后 commit 基于远程 HEAD，push 是干净的 fast-forward        │
+└────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─ 3. merge JSON ───────────────────────────────────────────────┐
+│  读取远程 data/*.json → 与本地内存快照合并                      │
+│  → focus_sessions.json: UUID 级别浅合并 (远程新UUID自动加入)    │
+│  → 其他 JSON 文件同理                                          │
+└────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─ 4. commit + push ────────────────────────────────────────────┐
+│  git add data/ sums/ → git commit → git push origin main       │
+│  → 此时 push 必然成功（reset 后本地基于远程 HEAD）              │
+└────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─ 5. import ────────────────────────────────────────────────────┐
+│  读取合并后的 data/focus_sessions.json                          │
+│  → INSERT OR IGNORE 到本地 SQLite (已存在的 UUID 跳过)          │
+│  → 返回导入的新会话数                                           │
+└────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─ 6. regenerate ───────────────────────────────────────────────┐
+│  SELECT DISTINCT date FROM focus_sessions WHERE completed      │
+│  → 逐日调用 DiaryService.generate(date) 重新生成所有日记 MD     │
+│  → 单日失败不影响其他日期 (try-catch 隔离)                      │
+└────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─ 7. sync diary_entries ───────────────────────────────────────┐
+│  遍历 sums/*.md → 写入/更新 diary_entries 表                    │
+│  → 确保日记页查询 diary_entries 表时能看到同步后的数据          │
+└────────────────────────────────────────────────────────────────┘
 ```
 
-这是一个经典的双向同步模式（bidirectional sync）。
+### 6.4 为什么不用简单的 git pull/push？
+
+| 问题 | 根因 | 解决方案 |
+|------|------|----------|
+| 合并冲突 | 两台 PC 独立生成同天日记 → pull 时冲突 | JSON UUID 去重 → regenerate MD |
+| push 被拒 | 本地 commit 与远程形成分叉历史 | `git reset --hard origin/main` 后再 commit |
+| 数据翻倍 | MD 语义合并做加法，重复同步累加 | 不再合并 MD，改为从 DB 重新生成 |
+| 同步静默失败 | checkout -B 遇脏文件失败，catch 空吞错 | `git reset --hard` 替代 `checkout -B` |
+| 统计不同步 | focus_sessions 表被 .gitignore 排除 | 导出 JSON → 同步 JSON → 导入 JSON |
+| 日记不同步 | diary_entries 表查数据库不读文件 | `sync_diary_entries_from_files()` 补充 |
+| 仓库初始化错误 | `checkIsRepo()` 向上递归到用户主目录 | `existsSync(.git)` 精确检测 |
+
+### 6.5 同步入口
+
+同步有三层入口，用户可在任意一层触发：
+
+1. **侧边栏 🔄 按钮**：GUI 一键同步，tooltip 显示诊断信息（远程日记数 / 新会话数 / 同步天数）
+2. **统计页同步按钮**：同步 + 清理孤儿数据 + 刷新图表
+3. **DevTools Console**：`window.__moe_sync__()` 可在 GUI 外直接调用测试
+4. **启动自动同步**：`main.ts` 启动时自动执行完整同步链路
+
+### 6.6 安全防护
+
+- **syncCleanup 双重防护**：diary_entries 为空时跳过删除；孤儿会话占比超 50% 时跳过（疑数据库异常）
+- **diary 再生异常隔离**：单日生成失败不影响其他日期
+- **诊断字段**：SyncResult 包含 `remote_sums_count` / `remote_data_count` / `diary_entries_synced`，零数据时明确提示「远程无新内容」
 
 ---
 
@@ -391,4 +463,5 @@ JSON 可以 diff，可以看到具体哪些行变了。如果两台 PC 都修改
 2. **IPC 就是桌面应用的 REST API**：主进程是服务器，渲染进程是客户端
 3. **Zustand = 客户端缓存 + 发布订阅**：集中管理共享数据，变更自动通知 UI
 4. **sql.js 需要手动 save()**：和 better-sqlite3 的最大区别
-5. **Git 同步 = 去中心化的数据中转**：不需要自己搭服务器
+5. **Git 同步 ≠ 简单的 pull/push**：UUID 去重 + DB regenerate 才是正确的多 PC 同步方案
+6. **源数据和派生数据要区分处理**：JSON 做 UUID 去重合并，MD 从 DB 重新生成，切不可直接合并 MD

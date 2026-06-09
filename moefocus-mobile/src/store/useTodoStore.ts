@@ -42,16 +42,11 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
     )
     const next = ((max_row?.max_ord as number) ?? -1) + 1
 
-    const last_id = await DatabaseService.run(
+    await DatabaseService.run(
       'INSERT INTO todo_items (task_id, custom_title, date, sort_order) VALUES (?, ?, ?, ?)',
       [task_id || null, custom_title || null, get().date, next]
     )
-    const row = await DatabaseService.get_one<TodoItem>(
-      `SELECT ti.*, t.title as task_title, t.color as task_color
-       FROM todo_items ti LEFT JOIN tasks t ON ti.task_id = t.id
-       WHERE ti.id = ?`, [last_id]
-    )
-    if (row) set({ items: [...get().items, row] })
+    await get().load_todos()
   },
 
   remove_todo: async (id) =>

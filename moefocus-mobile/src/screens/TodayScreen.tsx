@@ -1,14 +1,15 @@
 // ===== 今日页面 — TODO 管理 =====
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  TextInput, Alert
+  TextInput, Alert, Keyboard, Button
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTaskStore } from '../store/useTaskStore'
 import { useTodoStore } from '../store/useTodoStore'
 import { moe_colors, spacing, radius, font_size } from '../styles/theme'
 import type { Task } from '../types/models'
+import { ScreenBackground } from '../components/screen_background'
 
 export function TodayScreen(): JSX.Element
 {
@@ -16,6 +17,8 @@ export function TodayScreen(): JSX.Element
   const { tasks, load_tasks, add_task } = useTaskStore()
   const { items, load_todos, add_todo, toggle_done, remove_todo } = useTodoStore()
   const [new_task_text, set_new_task_text] = useState('')
+  const last_task_text_ref = useRef('')
+  const should_add_after_blur_ref = useRef(false)
 
   useEffect(() =>
   {
@@ -23,19 +26,50 @@ export function TodayScreen(): JSX.Element
     load_todos()
   }, [])
 
-  const handle_add_task = () =>
+  const update_new_task_text = (text: string | undefined) =>
   {
-    const t = new_task_text.trim()
-    if (t)
+    const next_text = text ?? ''
+    last_task_text_ref.current = next_text
+    set_new_task_text(next_text)
+  }
+
+  const commit_task_text = async (text?: string | null) =>
+  {
+    try
     {
-      add_task(t)
+      const raw_text = typeof text === 'string' ? text : last_task_text_ref.current || new_task_text
+      const t = raw_text.trim()
+      if (!t)
+      {
+        return
+      }
+
+      await add_task(t)
+      last_task_text_ref.current = ''
       set_new_task_text('')
+      should_add_after_blur_ref.current = false
+    }
+    catch (error)
+    {
+      Alert.alert('添加任务失败', error instanceof Error ? error.message : String(error))
     }
   }
 
-  const handle_add_todo = (task_id: number, title: string) =>
+  const handle_add_task = () =>
   {
-    add_todo(task_id, title)
+    should_add_after_blur_ref.current = true
+    Keyboard.dismiss()
+
+    const current_text = last_task_text_ref.current || new_task_text
+    if (current_text.trim())
+    {
+      commit_task_text(current_text)
+    }
+  }
+
+  const handle_add_todo = async (task_id: number, title: string) =>
+  {
+    await add_todo(task_id, title)
   }
 
   const handle_long_press_task = (task: Task) =>
@@ -47,7 +81,7 @@ export function TodayScreen(): JSX.Element
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
+    <ScreenBackground page_key="today" content_style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
       {/* Add task input */}
       <View style={styles.input_row}>
         <TextInput
@@ -55,12 +89,33 @@ export function TodayScreen(): JSX.Element
           placeholder="添加新任务..."
           placeholderTextColor={moe_colors.text_light}
           value={new_task_text}
-          onChangeText={set_new_task_text}
-          onSubmitEditing={handle_add_task}
+          onChangeText={update_new_task_text}
+          onChange={(event) => update_new_task_text(event.nativeEvent.text)}
+          onBlur={(event) =>
+          {
+            const text = event.nativeEvent.text ?? last_task_text_ref.current ?? new_task_text
+            update_new_task_text(text)
+            if (should_add_after_blur_ref.current)
+            {
+              commit_task_text(text)
+            }
+          }}
+          onEndEditing={(event) =>
+          {
+            const text = event.nativeEvent.text ?? last_task_text_ref.current ?? new_task_text
+            update_new_task_text(text)
+            if (should_add_after_blur_ref.current)
+            {
+              commit_task_text(text)
+            }
+          }}
+          onSubmitEditing={(event) => commit_task_text(event.nativeEvent.text ?? last_task_text_ref.current)}
+          returnKeyType="done"
+          blurOnSubmit={false}
         />
-        <TouchableOpacity style={styles.add_btn} onPress={handle_add_task}>
-          <Text style={styles.add_btn_text}>+</Text>
-        </TouchableOpacity>
+        <View style={styles.native_add_btn}>
+          <Button title="+" onPress={handle_add_task} color={moe_colors.pink} />
+        </View>
       </View>
 
       {/* Task library */}
@@ -75,6 +130,7 @@ export function TodayScreen(): JSX.Element
           <TouchableOpacity
             style={[styles.task_chip, { borderLeftColor: item.color || moe_colors.pink }]}
             onLongPress={() => handle_long_press_task(item)}
+            activeOpacity={0.75}
           >
             <Text style={styles.task_chip_icon}>{item.icon || '⭐'}</Text>
             <Text style={styles.task_chip_text}>{item.title}</Text>
@@ -98,13 +154,14 @@ export function TodayScreen(): JSX.Element
               <TouchableOpacity
                 style={[styles.checkbox, done && styles.checkbox_done]}
                 onPress={() => toggle_done(item.id)}
+                activeOpacity={0.75}
               >
                 {done && <Text style={styles.checkmark}>✓</Text>}
               </TouchableOpacity>
               <Text style={[styles.todo_text, done && styles.todo_text_done]}>
                 {item.custom_title || item.task_title || '未命名'}
               </Text>
-              <TouchableOpacity onPress={() => remove_todo(item.id)}>
+              <TouchableOpacity onPress={() => remove_todo(item.id)} activeOpacity={0.75}>
                 <Text style={styles.delete_btn}>✕</Text>
               </TouchableOpacity>
             </View>
@@ -114,12 +171,12 @@ export function TodayScreen(): JSX.Element
           <Text style={styles.empty_text}>长按任务库中的任务加入今日计划</Text>
         }
       />
-    </View>
+    </ScreenBackground>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: moe_colors.cream, paddingHorizontal: spacing.md },
+  container: { flex: 1, paddingHorizontal: spacing.md },
   input_row: {
     flexDirection: 'row', gap: 8, marginBottom: spacing.md
   },
@@ -131,6 +188,9 @@ const styles = StyleSheet.create({
   add_btn: {
     width: 44, height: 44, borderRadius: radius.md,
     backgroundColor: moe_colors.pink, justifyContent: 'center', alignItems: 'center'
+  },
+  native_add_btn: {
+    width: 44, height: 44, justifyContent: 'center'
   },
   add_btn_text: { fontSize: 24, color: moe_colors.white, fontWeight: '300' },
   section_title: {

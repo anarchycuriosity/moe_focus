@@ -93,9 +93,20 @@ export async function create_focus_session(subject: string, planned_min: number,
 {
   const today = dayjs().format('YYYY-MM-DD')
   const uuid = create_uuid()
-  return DatabaseService.run(
+  const inserted_id = await DatabaseService.run(
     `INSERT INTO focus_sessions (uuid, subject, planned_duration_min, rest_duration_sec, date, status)
      VALUES (?, ?, ?, ?, ?, 'running')`,
     [uuid, subject, planned_min, rest_sec, today]
   )
+
+  if (inserted_id > 0)
+  {
+    return inserted_id
+  }
+
+  const row = await DatabaseService.get_one<{ id: number }>(
+    'SELECT id FROM focus_sessions WHERE uuid = ?',
+    [uuid]
+  )
+  return row?.id ?? 0
 }

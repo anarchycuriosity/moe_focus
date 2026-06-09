@@ -61,8 +61,12 @@ export class DatabaseService
 
   private run_migrations(): void
   {
-    const schema_path = join(__dirname, '../../electron/database/schema.sql')
-    if (existsSync(schema_path))
+    const schema_candidates = [
+      join(app.getAppPath(), 'electron/database/schema.sql'),
+      join(__dirname, '../../electron/database/schema.sql')
+    ]
+    const schema_path = schema_candidates.find((candidate) => existsSync(candidate))
+    if (schema_path)
     {
       const schema_sql = readFileSync(schema_path, 'utf-8')
       this.db!.run(schema_sql)
