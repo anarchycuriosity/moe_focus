@@ -21,19 +21,29 @@ if (!fs.existsSync(target_file))
 }
 
 const source = fs.readFileSync(target_file, 'utf8')
-const old_text = '].includes(x)'
-const new_text = '].includes(x) && !x.startsWith("node:")'
+const patterns = [
+  {
+    old_text: '].includes(x)',
+    new_text: '].includes(x) && !x.startsWith("node:")'
+  },
+  {
+    old_text: '].includes(x)\n            //',
+    new_text: '].includes(x) && !x.startsWith("node:")\n            //'
+  }
+]
 
-if (source.includes(new_text))
+if (source.includes('!x.startsWith("node:")'))
 {
   process.exit(0)
 }
 
-if (!source.includes(old_text))
+const matched_pattern = patterns.find((pattern) => source.includes(pattern.old_text))
+
+if (!matched_pattern)
 {
   console.warn('[patch_expo_node_externals] Expo externals pattern not found; skipping patch.')
   process.exit(0)
 }
 
-fs.writeFileSync(target_file, source.replace(old_text, new_text), 'utf8')
+fs.writeFileSync(target_file, source.replace(matched_pattern.old_text, matched_pattern.new_text), 'utf8')
 console.log('[patch_expo_node_externals] Patched Expo Node externals for Windows + new Node.')

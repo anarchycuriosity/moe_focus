@@ -93,13 +93,49 @@ const default_settings: Array<[string, string]> = [
   ['ui.darkMode', 'false']
 ]
 
+type Sqlite_value = SQLite.SQLStatementArg
+
+function split_sql_script(sql: string): string[]
+{
+  return sql
+    .split(';')
+    .map((statement) => statement.trim())
+    .filter((statement) => statement.length > 0)
+}
+
+async function execute_sql(sql: string, params: Sqlite_value[] = []): Promise<SQLite.ResultSet>
+{
+  const db_handle = await get_db()
+
+  let result: SQLite.ResultSet | null = null
+  await db_handle.transactionAsync(async (transaction) =>
+  {
+    result = await transaction.executeSqlAsync(sql, params)
+  })
+
+  if (!result)
+  {
+    throw new Error(`SQL 执行没有返回结果: ${sql}`)
+  }
+
+  return result
+}
+
 async function migrate(db_handle: SQLite.SQLiteDatabase): Promise<void>
 {
-  const columns = await db_handle.getAllAsync<{ name: string }>('PRAGMA table_info(focus_sessions)')
+  let columns: Array<{ name: string }> = []
+  await db_handle.transactionAsync(async (transaction) =>
+  {
+    const result = await transaction.executeSqlAsync('PRAGMA table_info(focus_sessions)')
+    columns = result.rows as Array<{ name: string }>
+  })
+
   if (!columns.some((column) => column.name === 'uuid'))
   {
-    await db_handle.execAsync('ALTER TABLE focus_sessions ADD COLUMN uuid TEXT')
-    await db_handle.execAsync('CREATE UNIQUE INDEX IF NOT EXISTS idx_focus_uuid ON focus_sessions(uuid)')
+    await db_handle.execAsync([
+      { sql: 'ALTER TABLE focus_sessions ADD COLUMN uuid TEXT', args: [] },
+      { sql: 'CREATE UNIQUE INDEX IF NOT EXISTS idx_focus_uuid ON focus_sessions(uuid)', args: [] }
+    ], false)
   }
 }
 
@@ -107,16 +143,15 @@ async function get_db(): Promise<SQLite.SQLiteDatabase>
 {
   if (!db)
   {
-    db = await SQLite.openDatabaseAsync('moefocus.db')
-    await db.execAsync(schema)
+    db = SQLite.openDatabase('moefocus.db')
+    await db.execAsync(split_sql_script(schema).map((statement) => ({ sql: statement, args: [] })), false)
     await migrate(db)
 
     for (const [key, value] of default_settings)
     {
-      await db.runAsync(
+      await execute_sql(
         'INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
-        key,
-        value
+        [key, value]
       )
     }
   }
@@ -125,29 +160,28 @@ async function get_db(): Promise<SQLite.SQLiteDatabase>
 }
 
 export const DatabaseService = {
-  async get_all<T = Record<string, unknown>>(sql: string, params: SQLite.SQLiteBindValue[] = []): Promise<T[]>
+  async get_all<T = Record<string, unknown>>(sql: string, params: Sqlite_value[] = []): Promise<T[]>
   {
-    const db_handle = await get_db()
-    return db_handle.getAllAsync<T>(sql, ...params)
+    const result = await execute_sql(sql, params)
+    return result.rows as T[]
   },
 
-  async get_one<T = Record<string, unknown>>(sql: string, params: SQLite.SQLiteBindValue[] = []): Promise<T | null>
+  async get_one<T = Record<string, unknown>>(sql: string, params: Sqlite_value[] = []): Promise<T | null>
   {
-    const db_handle = await get_db()
-    return db_handle.getFirstAsync<T>(sql, ...params)
+    const rows = await this.get_all<T>(sql, params)
+    return rows[0] ?? null
   },
 
-  async run(sql: string, params: SQLite.SQLiteBindValue[] = []): Promise<number>
+  async run(sql: string, params: Sqlite_value[] = []): Promise<number>
   {
-    const db_handle = await get_db()
-    const result = await db_handle.runAsync(sql, ...params)
-    return result.lastInsertRowId
+    const result = await execute_sql(sql, params)
+    return result.insertId ?? 0
   },
 
   async exec(sql: string): Promise<void>
   {
     const db_handle = await get_db()
-    await db_handle.execAsync(sql)
+    await db_handle.execAsync(split_sql_script(sql).map((statement) => ({ sql: statement, args: [] })), false)
   },
 
   async get_settings(): Promise<Record<string, string>>

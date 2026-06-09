@@ -183,11 +183,11 @@ UUID 去重 (14)
 
 ---
 
-## 第五阶段：桌面应用打包与发版（文档 16）
+## 第五阶段：桌面应用打包与发版（文档 16/17）
 
 ### 你会学到什么
 
-这是软件工程生命周期中常被初学者忽视的一环：写完代码不是终点，让用户能安装、能运行、能更新才是。本阶段覆盖从编译打包到 GitHub Release 发布的完整部署链路。
+这是软件工程生命周期中常被初学者忽视的一环：写完代码不是终点，让用户能安装、能运行、能更新才是。本阶段覆盖从编译打包到 GitHub Release 发布的完整部署链路，并补充移动端 Android APK 打包环境。
 
 ### 知识图谱
 
@@ -204,6 +204,13 @@ GitHub Release 发版流程 (16)
   ├─ gh CLI — 认证、创建 Release、上传附件
   ├─ 附注标签 vs 轻量标签 — 附注标签包含元数据更完整
   └─ 错误恢复 — 删除/重打 Tag、修复 Untagged Release
+
+移动端 Android Release (17)
+  ├─ Expo SDK 版本矩阵 — expo/react-native/expo-sqlite 必须对齐
+  ├─ Android SDK — platform-tools/platforms/build-tools 分工
+  ├─ JDK 17 — React Native 0.73 + Gradle 8.3 的稳定构建环境
+  ├─ Gradle assembleRelease — 生成 APK 的原生构建入口
+  └─ 签名边界 — debug keystore 适合内部测试，正式发布需要 release keystore
 
 安装器工程化 (16)
   ├─ NSIS 安装向导 — oneClick/自定义路径/桌面快捷方式
@@ -222,7 +229,8 @@ GitHub Release 发版流程 (16)
 | 作业 | 对应文档 | 练习重点 |
 |------|---------|---------|
 | 桌面应用打包脚本 | 16 | electron-builder 配置、NSIS 参数调优 |
-| GitHub Release 自动化 | 16 | gh CLI 使用、语义化版本管理 |
+| 移动端 APK 打包 | 17 | Expo 依赖对齐、Android SDK、JDK 17、Gradle release |
+| GitHub Release 自动化 | 16/17 | gh CLI 使用、语义化版本管理、上传多平台附件 |
 
 ---
 
@@ -238,7 +246,7 @@ GitHub Release 发版流程 (16)
 | Git | 对象模型/checkout/show/ls-tree/fetch/push | 能编写自动化 Git 操作脚本 |
 | 分布式同步 | UUID/幂等/CRDT-like Merge/源vs派生 | 能设计简单的多节点数据同步方案 |
 | 工程化 | npm 生态/安装脚本/版本管理/错误处理 | 能编写健壮的跨平台安装脚本 |
-| 打包发版 | electron-builder/NSIS/gh CLI/语义化版本 | 能独立完成桌面应用打包与 GitHub Release 发布 |
+| 打包发版 | electron-builder/NSIS/Gradle/Android SDK/gh CLI/语义化版本 | 能独立完成桌面端和移动端 release 打包与 GitHub Release 发布 |
 | 调试 | 数据流追踪/静默错误排查/日志分析 | 能定位跨越多个模块的复杂 bug |
 
 ---
