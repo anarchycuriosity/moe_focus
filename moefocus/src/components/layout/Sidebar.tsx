@@ -42,6 +42,8 @@ export function Sidebar(): JSX.Element
       parts.push(`新会话 ${result.imported_sessions} 条`)
     if (result.imported_goals && result.imported_goals > 0)
       parts.push(`长期任务 ${result.imported_goals} 条`)
+    if (result.merged_files.length > 0)
+      parts.push(`合并反思 ${result.merged_files.length} 篇`)
     if (result.diary_entries_synced && result.diary_entries_synced > 0)
       parts.push(`日记 ${result.diary_entries_synced} 天`)
     if (result.new_from_remote.length > 0)

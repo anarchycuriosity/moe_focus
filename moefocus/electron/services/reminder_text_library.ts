@@ -1,4 +1,5 @@
 type ReminderKind = 'diary' | 'blog'
+export type ReminderTone = 'praise' | 'neutral' | 'blame'
 
 interface ReminderText
 {
@@ -20,6 +21,7 @@ export interface SelectedReminderText extends ReminderText
   character_name: string
   signature_name: string
   accent_color: string
+  tone: ReminderTone
 }
 
 const reminder_text_library: CharacterReminderSet[] = [
@@ -850,18 +852,26 @@ const reminder_text_library: CharacterReminderSet[] = [
   }
 ]
 
-export function select_random_reminder(kind: ReminderKind): SelectedReminderText
+function get_tone_index(tone: ReminderTone): number
+{
+  if (tone === 'praise') return 0
+  if (tone === 'neutral') return 1
+  return 2
+}
+
+export function select_random_reminder(kind: ReminderKind, tone: ReminderTone = 'neutral'): SelectedReminderText
 {
   const character_index = Math.floor(Math.random() * reminder_text_library.length)
   const character_reminders = reminder_text_library[character_index]
   const reminders = character_reminders[kind]
-  const reminder_index = Math.floor(Math.random() * reminders.length)
+  const reminder_index = Math.min(get_tone_index(tone), reminders.length - 1)
   const reminder = reminders[reminder_index]
 
   return {
     character_name: character_reminders.character_name,
     signature_name: character_reminders.signature_name,
     accent_color: character_reminders.accent_color,
+    tone,
     title: reminder.title,
     message: reminder.message
   }

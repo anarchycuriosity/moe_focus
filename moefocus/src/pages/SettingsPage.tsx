@@ -36,6 +36,13 @@ interface SettingsState
 
 type TabKey = 'general' | 'github' | 'email' | 'timer'
 
+interface DiaryReminderOption
+{
+  date: string
+  file_path: string | null
+  mood: string | null
+}
+
 export function SettingsPage(): JSX.Element
 {
   const [active_tab, set_active_tab] = useState<TabKey>('general')
@@ -45,14 +52,26 @@ export function SettingsPage(): JSX.Element
   const [email_test_msg, set_email_test_msg] = useState('')
   const [blog_test_msg, set_blog_test_msg] = useState('')
   const [diary_test_msg, set_diary_test_msg] = useState('')
+  const [diary_reminder_dates, set_diary_reminder_dates] = useState<DiaryReminderOption[]>([])
+  const [selected_reminder_date, set_selected_reminder_date] = useState('')
+  const [selected_reminder_msg, set_selected_reminder_msg] = useState('')
   const [git_status, set_git_status] = useState('')
   const [validating_remote, set_validating_remote] = useState(false)
 
   useEffect(() =>
   {
-    window.electronAPI.settings.get_all().then((all) =>
+    Promise.all([
+      window.electronAPI.settings.get_all(),
+      window.electronAPI.diary.list_all()
+    ]).then(([all, diary_rows]) =>
     {
       set_settings(all as unknown as SettingsState)
+      const recent_diaries = diary_rows.slice(0, 14)
+      set_diary_reminder_dates(recent_diaries)
+      if (recent_diaries.length > 0)
+      {
+        set_selected_reminder_date(recent_diaries[0].date)
+      }
       set_loading(false)
     })
   }, [])
@@ -113,6 +132,25 @@ export function SettingsPage(): JSX.Element
     const result = await window.electronAPI.email.send_test_blog_reminder()
     set_blog_test_msg(result.success ? '每周博客提醒邮件发送成功!' : `发送失败: ${result.error}`)
     setTimeout(() => set_blog_test_msg(''), 8000)
+  }
+
+  const handle_send_selected_diary_reminder = async () =>
+  {
+    if (!settings['email.qqUser'] || !settings['email.qqPass'])
+    {
+      set_selected_reminder_msg('请先填写QQ邮箱和授权码')
+      return
+    }
+    if (!selected_reminder_date)
+    {
+      set_selected_reminder_msg('没有可发送的日记日期')
+      return
+    }
+
+    set_selected_reminder_msg('抽取角色并发送中...')
+    const result = await window.electronAPI.email.send_reminder(selected_reminder_date)
+    set_selected_reminder_msg(result.success ? `${selected_reminder_date} 的日记提醒邮件已发送!` : `发送失败: ${result.error}`)
+    setTimeout(() => set_selected_reminder_msg(''), 8000)
   }
 
   const handle_check_sync = async () =>
@@ -471,6 +509,45 @@ export function SettingsPage(): JSX.Element
               {email_test_msg && (
                 <span className={email_test_msg.includes('成功') ? styles.success_msg : styles.error_msg}>
                   {email_test_msg}
+                </span>
+              )}
+            </div>
+
+            <h3 style={{ marginTop: '24px' }}>指定日期日记提醒</h3>
+            <p className={styles.note}>
+              从最近的日记里选一天发送提醒邮件。每次发送都会重新随机抽取角色，看看她会怎么评价那天。
+            </p>
+            <div className={styles.field}>
+              <label>日记日期</label>
+              <select
+                value={selected_reminder_date}
+                onChange={(e) => set_selected_reminder_date(e.target.value)}
+                className={styles.select}
+                disabled={diary_reminder_dates.length === 0}
+              >
+                {diary_reminder_dates.length === 0 ? (
+                  <option value="">暂无日记</option>
+                ) : (
+                  diary_reminder_dates.map((entry) => (
+                    <option key={entry.date} value={entry.date}>
+                      {entry.date}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+            <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <MoeButton
+                variant="secondary"
+                size="sm"
+                onClick={handle_send_selected_diary_reminder}
+                disabled={diary_reminder_dates.length === 0}
+              >
+                抽取角色并发送
+              </MoeButton>
+              {selected_reminder_msg && (
+                <span className={selected_reminder_msg.includes('已发送') ? styles.success_msg : styles.error_msg}>
+                  {selected_reminder_msg}
                 </span>
               )}
             </div>

@@ -8,9 +8,10 @@ import cron from 'node-cron'
 import { DatabaseService } from './DatabaseService'
 import { DiaryService } from './DiaryService'
 import { git_service } from './GitService'
-import { email_service } from './EmailService'
+import { DailyFocusProgress, email_service } from './EmailService'
 import { TyporaService } from './TyporaService'
 import dayjs from 'dayjs'
+import { existsSync, readFileSync } from 'fs'
 
 export class SchedulerService
 {
@@ -81,10 +82,16 @@ export class SchedulerService
 
       const user = (qq_user as { value: string }).value
       const pass = (qq_pass as { value: string }).value
-      const diary = db.get('SELECT summary_text FROM diary_entries WHERE date = ?', [today])
-      const diary_content = (diary as { summary_text: string } | undefined)?.summary_text || '(今日日记尚未生成)'
+      const diary = db.get('SELECT file_path FROM diary_entries WHERE date = ?', [today]) as { file_path: string } | undefined
 
-      const result = await email_service.send_reminder(today, user, pass, user, diary_content)
+      if (!diary?.file_path || !existsSync(diary.file_path))
+      {
+        return { success: false, error: '今日日记 Markdown 文件不存在，请先生成今天的日记' }
+      }
+
+      const diary_content = readFileSync(diary.file_path, 'utf-8')
+      const progress = this.get_daily_focus_progress(today)
+      const result = await email_service.send_diary_test(today, user, pass, user, diary_content, progress)
       console.log('[Scheduler] email result:', result)
 
       if (result.success)
@@ -192,6 +199,26 @@ export class SchedulerService
     return this.get_setting(key, default_val)
   }
 
+  private get_daily_focus_progress(date: string): DailyFocusProgress
+  {
+    const db = DatabaseService.instance
+    const total_row = db.get(
+      `SELECT COALESCE(SUM(actual_duration_sec), 0) as total_sec
+       FROM focus_sessions
+       WHERE date = ? AND status = 'completed'`,
+      [date]
+    ) as { total_sec: number } | undefined
+    const goal_row = db.get('SELECT value FROM settings WHERE key = ?', ['focus.dailyGoal']) as { value: string } | undefined
+    const goal_minutes = Math.max(parseInt(goal_row?.value || '120', 10) || 120, 1)
+    const total_minutes = Math.round(((total_row?.total_sec || 0) as number) / 60)
+
+    return {
+      total_minutes,
+      goal_minutes,
+      ratio: total_minutes / goal_minutes
+    }
+  }
+
   private schedule_diary(): void
   {
     const time = this.get_time_setting('diary.autoGenerateTime', '23:00')
@@ -257,8 +284,9 @@ export class SchedulerService
         const pass = (qq_pass as { value: string }).value
         const diary = db.get('SELECT summary_text FROM diary_entries WHERE date = ?', [today])
         const diary_content = (diary as { summary_text: string } | undefined)?.summary_text || '(日记尚未生成)'
+        const progress = this.get_daily_focus_progress(today)
 
-        const result = await email_service.send_reminder(today, user, pass, user, diary_content)
+        const result = await email_service.send_reminder(today, user, pass, user, diary_content, progress)
         console.log('[Scheduler] email send result:', result)
 
         // Auto-open Typora

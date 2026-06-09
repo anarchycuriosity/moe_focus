@@ -75,6 +75,8 @@ export function StatsDashboard(): JSX.Element
         parts.push(`导入 ${sync_result.imported_sessions} 条会话`)
       if (sync_result.imported_goals && sync_result.imported_goals > 0)
         parts.push(`同步 ${sync_result.imported_goals} 条长期任务`)
+      if (sync_result.merged_files.length > 0)
+        parts.push(`合并 ${sync_result.merged_files.length} 篇日记反思`)
       if (sync_result.diary_entries_synced && sync_result.diary_entries_synced > 0)
         parts.push(`同步 ${sync_result.diary_entries_synced} 天日记`)
       if (sync_result.new_from_remote.length > 0)

@@ -12,6 +12,97 @@ interface DiaryTimeData
   suffix: string                        // 反思之后的尾部
 }
 
+const reflection_placeholder = '*(在此写下你今天的思考和感悟...)*'
+const reflection_clear_marker = '<!-- moe:reflection:cleared -->'
+
+export function is_meaningful_reflection(reflection: string): boolean
+{
+  const trimmed = strip_reflection_clear_marker(reflection).trim()
+  return trimmed.length > 0 && trimmed !== reflection_placeholder
+}
+
+export function has_reflection_clear_marker(markdown_or_reflection: string): boolean
+{
+  return markdown_or_reflection.includes(reflection_clear_marker)
+}
+
+export function strip_reflection_clear_marker(reflection: string): string
+{
+  return reflection.replace(reflection_clear_marker, '').trim()
+}
+
+export function get_cleared_reflection(): string
+{
+  return `${reflection_clear_marker}\n\n${reflection_placeholder}`
+}
+
+export function extract_diary_reflection(markdown: string): string
+{
+  const reflection_start = markdown.indexOf('## 💭 自我反思')
+  if (reflection_start === -1) return ''
+
+  const after_reflection = markdown.slice(reflection_start)
+  const reflection_lines = after_reflection.split(/\r?\n/)
+  const separator_idx = reflection_lines.findIndex((line) => line.startsWith('---'))
+  const reflection = separator_idx === -1
+    ? reflection_lines.slice(1).join('\n').trim()
+    : reflection_lines.slice(1, separator_idx).join('\n').trim()
+
+  if (has_reflection_clear_marker(reflection)) return reflection_clear_marker
+
+  return is_meaningful_reflection(reflection) ? strip_reflection_clear_marker(reflection) : ''
+}
+
+export function replace_diary_reflection(markdown: string, reflection: string): string
+{
+  const reflection_start = markdown.indexOf('## 💭 自我反思')
+  if (reflection_start === -1) return markdown
+
+  const after_reflection = markdown.slice(reflection_start)
+  const reflection_lines = after_reflection.split(/\r?\n/)
+  const separator_idx = reflection_lines.findIndex((line) => line.startsWith('---'))
+  const safe_reflection = has_reflection_clear_marker(reflection)
+    ? get_cleared_reflection()
+    : is_meaningful_reflection(reflection)
+      ? strip_reflection_clear_marker(reflection)
+      : reflection_placeholder
+
+  if (separator_idx === -1)
+  {
+    const before_reflection = markdown.slice(0, reflection_start)
+    return `${before_reflection}## 💭 自我反思\n\n${safe_reflection}\n`
+  }
+
+  const suffix = reflection_lines.slice(separator_idx).join('\n')
+  const before_reflection = markdown.slice(0, reflection_start)
+  return `${before_reflection}## 💭 自我反思\n\n${safe_reflection}\n\n${suffix.trimEnd()}\n`
+}
+
+export function merge_diary_manual_content(local_md: string, remote_md: string, _filename: string): string
+{
+  const local_reflection = extract_diary_reflection(local_md)
+  const remote_reflection = extract_diary_reflection(remote_md)
+  const local_cleared = has_reflection_clear_marker(local_reflection)
+  const remote_cleared = has_reflection_clear_marker(remote_reflection)
+
+  if (local_cleared || remote_cleared) return replace_diary_reflection(local_md, get_cleared_reflection())
+
+  if (!local_reflection && !remote_reflection) return local_md
+  if (local_reflection && !remote_reflection) return replace_diary_reflection(local_md, local_reflection)
+  if (!local_reflection && remote_reflection) return replace_diary_reflection(local_md, remote_reflection)
+  if (local_reflection === remote_reflection) return replace_diary_reflection(local_md, local_reflection)
+  if (local_reflection.includes(remote_reflection)) return replace_diary_reflection(local_md, local_reflection)
+  if (remote_reflection.includes(local_reflection)) return replace_diary_reflection(local_md, remote_reflection)
+
+  const merged_reflection = [
+    local_reflection,
+    '',
+    remote_reflection
+  ].join('\n')
+
+  return replace_diary_reflection(local_md, merged_reflection)
+}
+
 function parse_time_str(text: string): number
 {
   // Parse time strings like "2h 30m", "1h 0m", "45m", "2h"

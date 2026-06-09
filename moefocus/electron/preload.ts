@@ -59,6 +59,7 @@ const electron_api = {
     generate: (date: string) => ipcRenderer.invoke('diary:generate', date),
     get_by_date: (date: string) => ipcRenderer.invoke('diary:getByDate', date),
     save_reflection: (date: string, text: string) => ipcRenderer.invoke('diary:saveReflection', date, text),
+    clear_manual_content: (date: string) => ipcRenderer.invoke('diary:clearManualContent', date),
     list_all: () => ipcRenderer.invoke('diary:listAll'),
     delete_entry: (date: string) => ipcRenderer.invoke('diary:deleteEntry', date),
     on_auto_generated: (cb: (date: string) => void) =>

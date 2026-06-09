@@ -30,8 +30,11 @@ export function DiaryPage(): JSX.Element
   const [pictures, set_pictures] = useState<string[]>([])
   const [has_today, set_has_today] = useState(false)
   const [generate_dialog_open, set_generate_dialog_open] = useState(false)
+  const [generate_date, set_generate_date] = useState(dayjs().format('YYYY-MM-DD'))
   const [generating, set_generating] = useState(false)
   const [generate_notice, set_generate_notice] = useState<GenerateNotice | null>(null)
+  const [clear_dialog_open, set_clear_dialog_open] = useState(false)
+  const [clearing_manual_content, set_clearing_manual_content] = useState(false)
   const [rotate_enabled, set_rotate_enabled] = useState(true)
   const [rotate_interval, set_rotate_interval] = useState(8)
   const [slot_a_idx, set_slot_a_idx] = useState(0)
@@ -59,9 +62,9 @@ export function DiaryPage(): JSX.Element
 
   useEffect(() =>
   {
-    const entry = entries.find((e) => e.date === target_date)
+    const entry = entries.find((e) => e.date === generate_date)
     set_has_today(!!entry)
-  }, [target_date, entries])
+  }, [generate_date, entries])
 
   const load_pictures = async () =>
   {
@@ -131,6 +134,7 @@ export function DiaryPage(): JSX.Element
     grouped[month].push(e)
   }
   const months = Object.keys(grouped).sort().reverse()
+  const has_target_entry = entries.some((e) => e.date === target_date)
 
   const handle_open = async (d: string) =>
   {
@@ -143,6 +147,7 @@ export function DiaryPage(): JSX.Element
 
   const handle_generate_click = () =>
   {
+    set_generate_date(dayjs().format('YYYY-MM-DD'))
     set_generate_dialog_open(true)
   }
 
@@ -154,7 +159,8 @@ export function DiaryPage(): JSX.Element
     set_generate_notice(null)
     try
     {
-      const result = await window.electronAPI.diary.generate(target_date)
+      const date_to_generate = generate_date || dayjs().format('YYYY-MM-DD')
+      const result = await window.electronAPI.diary.generate(date_to_generate)
       if (!result.success)
       {
         set_generate_notice({ type: 'error', text: '日记生成失败，请稍后重试。' })
@@ -165,7 +171,7 @@ export function DiaryPage(): JSX.Element
       set_entries(rows as unknown as DiaryEntry[])
       set_has_today(true)
       set_generate_dialog_open(false)
-      set_generate_notice({ type: 'success', text: `${target_date} 的日记已生成，已打开 Typora 供你审核。` })
+      set_generate_notice({ type: 'success', text: `${date_to_generate} 的日记统计已更新，已打开 Typora。` })
 
       if (result.file_path)
       {
@@ -180,6 +186,50 @@ export function DiaryPage(): JSX.Element
     finally
     {
       set_generating(false)
+    }
+  }
+
+  const handle_clear_manual_content = async () =>
+  {
+    if (clearing_manual_content) return
+
+    set_clearing_manual_content(true)
+    set_generate_notice(null)
+    try
+    {
+      const result = await window.electronAPI.diary.clear_manual_content(target_date)
+      if (!result.success)
+      {
+        set_generate_notice({ type: 'error', text: result.error || '自定义总结清空失败。' })
+        return
+      }
+
+      set_clear_dialog_open(false)
+      set_generate_notice({ type: 'success', text: `${target_date} 的自定义总结已清空，后续同步不会再拉回旧反思。` })
+      if (result.file_path)
+      {
+        try
+        {
+          const open_result = await window.electronAPI.file.open_in_typora(result.file_path)
+          if (!open_result.success)
+          {
+            set_generate_notice({ type: 'success', text: `${target_date} 的自定义总结已清空，但 Typora 未能自动打开。` })
+          }
+        }
+        catch
+        {
+          set_generate_notice({ type: 'success', text: `${target_date} 的自定义总结已清空，但 Typora 未能自动打开。` })
+        }
+      }
+    }
+    catch (error)
+    {
+      const error_text = error instanceof Error ? error.message : '未知错误'
+      set_generate_notice({ type: 'error', text: `自定义总结清空失败: ${error_text}` })
+    }
+    finally
+    {
+      set_clearing_manual_content(false)
     }
   }
 
@@ -256,6 +306,16 @@ export function DiaryPage(): JSX.Element
       {/* Main area: rotating photo frame */}
       <div className={styles.main}>
         <MoeCard className={styles.frame_card}>
+          <div className={styles.frame_actions}>
+            <MoeButton
+              variant="ghost"
+              size="sm"
+              onClick={() => set_clear_dialog_open(true)}
+              disabled={!has_target_entry || clearing_manual_content}
+            >
+              清空自定义总结
+            </MoeButton>
+          </div>
           {pictures.length > 0 ? (
             <div className={styles.frame_wrapper}>
               <div
@@ -317,16 +377,16 @@ export function DiaryPage(): JSX.Element
         <div className={styles.modal_backdrop} role="presentation">
           <div className={styles.generate_dialog} role="dialog" aria-modal="true" aria-labelledby="generate_dialog_title">
             <h3 id="generate_dialog_title">
-              {has_today ? '确认覆盖当天日记？' : '生成当天日记'}
+              {has_today ? '更新当天统计？' : '生成当天日记'}
             </h3>
             <p>
               {has_today
-                ? `${target_date} 已经存在日记。继续生成会用当前专注记录重新生成内容，并覆盖原来的日记文件。`
-                : `将根据 ${target_date} 的专注记录生成一篇日记。生成完成后会打开 Typora，方便你审核和修改。`}
+                ? `${generate_date} 已经存在日记。继续生成只会刷新程序统计区，你手写的反思和额外内容会保留。`
+                : `将根据 ${generate_date} 的专注记录生成一篇日记。生成完成后会打开 Typora，方便你审核和修改。`}
             </p>
             {has_today && (
               <p className={styles.danger_text}>
-                如果你已经手写过今天的内容，请先在 Typora 中备份或取消本次操作。
+                MoeFocus 会自动维护统计区；标记区外的手写内容不会被生成操作覆盖。
               </p>
             )}
             <div className={styles.dialog_actions}>
@@ -344,7 +404,39 @@ export function DiaryPage(): JSX.Element
                 onClick={handle_generate_confirm}
                 disabled={generating}
               >
-                {generating ? '生成中...' : has_today ? '确认覆盖并生成' : '确认生成'}
+                {generating ? '生成中...' : has_today ? '更新统计' : '确认生成'}
+              </MoeButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {clear_dialog_open && (
+        <div className={styles.modal_backdrop} role="presentation">
+          <div className={styles.generate_dialog} role="dialog" aria-modal="true" aria-labelledby="clear_dialog_title">
+            <h3 id="clear_dialog_title">清空自定义总结？</h3>
+            <p>
+              将清空 {target_date} 的自我反思和手写总结，并写入同步删除标记。统计区和当天专注数据不会被删除。
+            </p>
+            <p className={styles.danger_text}>
+              后续同步时，其他电脑上的旧反思不会再自动合并回来；如需恢复，请从 .bak 备份或 Git 历史中手动找回。
+            </p>
+            <div className={styles.dialog_actions}>
+              <MoeButton
+                variant="ghost"
+                size="sm"
+                onClick={() => set_clear_dialog_open(false)}
+                disabled={clearing_manual_content}
+              >
+                取消
+              </MoeButton>
+              <MoeButton
+                variant="secondary"
+                size="sm"
+                onClick={handle_clear_manual_content}
+                disabled={clearing_manual_content}
+              >
+                {clearing_manual_content ? '清空中...' : '确认清空'}
               </MoeButton>
             </div>
           </div>

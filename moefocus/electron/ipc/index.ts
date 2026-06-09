@@ -2,7 +2,7 @@ import { ipcMain, BrowserWindow, dialog, app } from 'electron'
 import { DatabaseService } from '../services/DatabaseService'
 import { DiaryService } from '../services/DiaryService'
 import { git_service } from '../services/GitService'
-import { email_service } from '../services/EmailService'
+import { DailyFocusProgress, email_service } from '../services/EmailService'
 import { scheduler_service } from '../services/SchedulerService'
 import {
   export_long_term_goals_from_db,
@@ -12,7 +12,7 @@ import {
   sync_diary_entries_from_files
 } from '../services/SyncService'
 import { main_window } from '../main'
-import { existsSync, unlinkSync } from 'fs'
+import { existsSync, readFileSync, unlinkSync } from 'fs'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
 
@@ -382,6 +382,11 @@ function registerDiaryHandlers(): void
     return { success: true, date, file_path: result.file_path, content: result.content }
   })
 
+  ipcMain.handle('diary:clearManualContent', (_event, date) =>
+  {
+    return DiaryService.clear_manual_content(date)
+  })
+
   ipcMain.handle('diary:deleteEntry', (_event, date) =>
   {
     // 级联删除同日期 focus_sessions
@@ -674,6 +679,25 @@ function registerEmailHandlers(): void
 {
   const db = () => DatabaseService.instance
 
+  const get_daily_focus_progress = (date: string): DailyFocusProgress =>
+  {
+    const total_row = db().get(
+      `SELECT COALESCE(SUM(actual_duration_sec), 0) as total_sec
+       FROM focus_sessions
+       WHERE date = ? AND status = 'completed'`,
+      [date]
+    ) as { total_sec: number } | undefined
+    const goal_row = db().get('SELECT value FROM settings WHERE key = ?', ['focus.dailyGoal']) as { value: string } | undefined
+    const goal_minutes = Math.max(parseInt(goal_row?.value || '120', 10) || 120, 1)
+    const total_minutes = Math.round(((total_row?.total_sec || 0) as number) / 60)
+
+    return {
+      total_minutes,
+      goal_minutes,
+      ratio: total_minutes / goal_minutes
+    }
+  }
+
   ipcMain.handle('email:send', async (_event, to, subject, body) =>
   {
     const user = db().get('SELECT value FROM settings WHERE key = ?', ['email.qqUser'])
@@ -687,8 +711,16 @@ function registerEmailHandlers(): void
     const user = db().get('SELECT value FROM settings WHERE key = ?', ['email.qqUser'])
     const pass = db().get('SELECT value FROM settings WHERE key = ?', ['email.qqPass'])
     if (!user || !pass) return { success: false, error: 'QQ邮箱未配置' }
-    const diary = db().get('SELECT summary_text FROM diary_entries WHERE date = ?', [date])
-    return email_service.send_reminder(date, (user as { value: string }).value, (pass as { value: string }).value, (user as { value: string }).value, (diary as { summary_text: string } | undefined)?.summary_text || '')
+    const diary = db().get('SELECT summary_text, file_path FROM diary_entries WHERE date = ?', [date]) as { summary_text?: string; file_path?: string } | undefined
+    if (!diary)
+    {
+      return { success: false, error: `${date} 没有日记记录` }
+    }
+    const diary_content = diary.file_path && existsSync(diary.file_path)
+      ? readFileSync(diary.file_path, 'utf-8')
+      : diary.summary_text || ''
+    const progress = get_daily_focus_progress(date)
+    return email_service.send_reminder(date, (user as { value: string }).value, (pass as { value: string }).value, (user as { value: string }).value, diary_content, progress)
   })
 
   // 手动测试：发送今日日记提醒（委托给 scheduler_service）

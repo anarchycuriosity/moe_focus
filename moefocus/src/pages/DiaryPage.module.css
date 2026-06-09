@@ -148,13 +148,22 @@
   height: 100%;
   padding: 12px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
 }
 
+.frame_actions {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 0 10px;
+}
+
 .frame_wrapper {
   width: 100%;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   position: relative;
 }
 

@@ -6,7 +6,7 @@ import { simpleGit, type SimpleGit } from 'simple-git'
 import { app } from 'electron'
 import { join, basename } from 'path'
 import { writeFileSync, readFileSync, readdirSync, existsSync, mkdirSync } from 'fs'
-import { type SyncResult } from './SyncService'
+import { merge_diary_manual_content, type SyncResult } from './SyncService'
 
 export class GitService
 {
@@ -35,6 +35,8 @@ export class GitService
       '*.db',
       '*.db-wal',
       '*.db-shm',
+      '*.bak',
+      '*.recovered-*',
       'Cache/',
       'Code Cache/',
       'DawnCache/',
@@ -457,10 +459,8 @@ export class GitService
         console.log('[sync] 远程分支存在但 sums/ 和 data/ 目录为空 — 数据仓库可能尚未初始化')
       }
 
-      // MD diary files: 仅从远程拉取本地不存在的文件，不做语义合并。
-      // 语义合并（累加 total_minutes）在重复同步时会翻倍，因为无法区分
-      // 哪些会话已被计入。正确的合并由 JSON UUID 去重 + import 后
-      // DiaryService.generate() 从 DB 重新生成日记完成。
+      // MD diary files: stats are regenerated from UUID-deduped JSON later.
+      // Here we only protect user-written manual content such as 自我反思.
       const all_sum_files = new Set([...sums_snapshot.keys(), ...remote_sums.keys()])
       for (const filename of all_sum_files)
       {
@@ -476,7 +476,15 @@ export class GitService
         {
           writeFileSync(join(sums_dir, filename), local_content, 'utf-8')
         }
-        // both exist: keep local, do NOT merge (JSON import + regenerate handles dedup)
+        else if (local_content && remote_content)
+        {
+          const merged_content = merge_diary_manual_content(local_content, remote_content, filename)
+          writeFileSync(join(sums_dir, filename), merged_content, 'utf-8')
+          if (merged_content !== local_content)
+          {
+            result.merged_files.push(filename)
+          }
+        }
       }
 
       // Merge .json data files: UUID-keyed object merge

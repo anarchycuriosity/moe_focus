@@ -7,6 +7,7 @@ const route_to_page: Record<string, string> = {
   '/diary': 'diary',
   '/statistics': 'statistics',
   '/settings': 'settings',
+  '/long-term-tasks': 'goals',
   '/focus': 'today'
 }
 
@@ -29,7 +30,7 @@ export function AnimeBackground(): JSX.Element
   // Load all wallpapers on mount
   useEffect(() =>
   {
-    const pages = ['today', 'diary', 'statistics', 'settings']
+    const pages = ['today', 'diary', 'statistics', 'settings', 'goals']
     async function load_all()
     {
       const result: Record<string, string> = {}
