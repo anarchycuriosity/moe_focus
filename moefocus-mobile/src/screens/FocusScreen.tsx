@@ -1,12 +1,13 @@
 // ===== 专注计时页面 =====
-import { useEffect, useRef, useState, useCallback } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native'
+import { useEffect, useRef, useState } from 'react'
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   useFocusStore, create_focus_session,
   save_focus_complete, save_focus_abandon
 } from '../store/useFocusStore'
 import { moe_colors, spacing, radius, font_size } from '../styles/theme'
+import { ScreenBackground } from '../components/screen_background'
 
 export function FocusScreen(): JSX.Element
 {
@@ -23,16 +24,16 @@ export function FocusScreen(): JSX.Element
   const [rest_input, set_rest_input] = useState(String(rest_duration_min))
   const interval_ref = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const clear_timer = useCallback(() =>
+  const clear_timer = () =>
   {
     if (interval_ref.current)
     {
       clearInterval(interval_ref.current)
       interval_ref.current = null
     }
-  }, [])
+  }
 
-  const start_interval = useCallback(() =>
+  const start_interval = () =>
   {
     clear_timer()
     interval_ref.current = setInterval(() =>
@@ -68,13 +69,19 @@ export function FocusScreen(): JSX.Element
         state.end_session()
       }
     }, 1000)
-  }, [clear_timer])
+  }
 
   const start = async () =>
   {
-    const fid = await create_focus_session(subject || '专注', focus_duration_min, rest_duration_min * 60)
-    start_session(fid)
-    start_interval()
+    try
+    {
+      const fid = await create_focus_session(subject || '专注', focus_duration_min, rest_duration_min * 60)
+      start_session(fid)
+    }
+    catch (error)
+    {
+      Alert.alert('开始专注失败', error instanceof Error ? error.message : String(error))
+    }
   }
 
   const pause = async () =>
@@ -86,7 +93,6 @@ export function FocusScreen(): JSX.Element
   const resume = () =>
   {
     resume_session()
-    start_interval()
   }
 
   const stop = async () =>
@@ -96,7 +102,19 @@ export function FocusScreen(): JSX.Element
     end_session()
   }
 
-  useEffect(() => () => clear_timer(), [])
+  useEffect(() =>
+  {
+    if (phase === 'focus' || phase === 'rest')
+    {
+      start_interval()
+    }
+    else
+    {
+      clear_timer()
+    }
+
+    return () => clear_timer()
+  }, [phase])
 
   const minutes = Math.floor(remaining_seconds / 60)
   const seconds = remaining_seconds % 60
@@ -105,7 +123,7 @@ export function FocusScreen(): JSX.Element
   const is_running = phase === 'focus' || phase === 'rest'
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
+    <ScreenBackground page_key="focus" content_style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
       {/* Timer circle */}
       <View style={styles.circle}>
         <View style={[styles.progress_bar, {
@@ -167,37 +185,37 @@ export function FocusScreen(): JSX.Element
       {/* Controls */}
       <View style={styles.controls}>
         {phase === 'idle' && (
-          <TouchableOpacity style={styles.primary_btn} onPress={start}>
+          <TouchableOpacity style={styles.primary_btn} onPress={start} activeOpacity={0.75}>
             <Text style={styles.primary_btn_text}>开始专注</Text>
           </TouchableOpacity>
         )}
         {(phase === 'focus' || phase === 'rest') && (
           <>
-            <TouchableOpacity style={styles.control_btn} onPress={pause}>
+            <TouchableOpacity style={styles.control_btn} onPress={pause} activeOpacity={0.75}>
               <Text style={styles.control_btn_text}>暂停</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.control_btn, styles.danger_btn]} onPress={stop}>
+            <TouchableOpacity style={[styles.control_btn, styles.danger_btn]} onPress={stop} activeOpacity={0.75}>
               <Text style={[styles.control_btn_text, { color: moe_colors.danger }]}>结束</Text>
             </TouchableOpacity>
           </>
         )}
         {phase === 'paused' && (
           <>
-            <TouchableOpacity style={styles.primary_btn} onPress={resume}>
+            <TouchableOpacity style={styles.primary_btn} onPress={resume} activeOpacity={0.75}>
               <Text style={styles.primary_btn_text}>继续</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.control_btn} onPress={stop}>
+            <TouchableOpacity style={styles.control_btn} onPress={stop} activeOpacity={0.75}>
               <Text style={styles.control_btn_text}>结束</Text>
             </TouchableOpacity>
           </>
         )}
       </View>
-    </View>
+    </ScreenBackground>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: moe_colors.cream, paddingHorizontal: spacing.md, alignItems: 'center' },
+  container: { flex: 1, paddingHorizontal: spacing.md, alignItems: 'center' },
   circle: {
     width: 220, height: 220, borderRadius: 110, borderWidth: 4,
     borderColor: moe_colors.pink, justifyContent: 'center', alignItems: 'center',

@@ -35,12 +35,82 @@ function parse_remote_url(remote_url: string): { owner: string; repo: string } |
 
 function encode_content(text: string): string
 {
-  return btoa(unescape(encodeURIComponent(text)))
+  const bytes = encode_utf8(text)
+  return encode_base64(bytes)
 }
 
 function decode_content(text: string): string
 {
-  return decodeURIComponent(escape(atob(text.replace(/\n/g, ''))))
+  const bytes = decode_base64(text.replace(/\n/g, ''))
+  return decode_utf8(bytes)
+}
+
+const base64_chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+
+function encode_utf8(text: string): number[]
+{
+  const encoded = encodeURIComponent(text)
+  const bytes: number[] = []
+  for (let i = 0; i < encoded.length; i++)
+  {
+    if (encoded[i] === '%')
+    {
+      bytes.push(parseInt(encoded.slice(i + 1, i + 3), 16))
+      i += 2
+    }
+    else
+    {
+      bytes.push(encoded.charCodeAt(i))
+    }
+  }
+  return bytes
+}
+
+function decode_utf8(bytes: number[]): string
+{
+  const encoded = bytes.map((byte) => `%${byte.toString(16).padStart(2, '0')}`).join('')
+  return decodeURIComponent(encoded)
+}
+
+function encode_base64(bytes: number[]): string
+{
+  let output = ''
+  for (let i = 0; i < bytes.length; i += 3)
+  {
+    const a = bytes[i]
+    const b = bytes[i + 1] ?? 0
+    const c = bytes[i + 2] ?? 0
+    const triple = (a << 16) | (b << 8) | c
+
+    output += base64_chars[(triple >> 18) & 63]
+    output += base64_chars[(triple >> 12) & 63]
+    output += i + 1 < bytes.length ? base64_chars[(triple >> 6) & 63] : '='
+    output += i + 2 < bytes.length ? base64_chars[triple & 63] : '='
+  }
+  return output
+}
+
+function decode_base64(text: string): number[]
+{
+  const clean_text = text.replace(/[^A-Za-z0-9+/=]/g, '')
+  const bytes: number[] = []
+
+  for (let i = 0; i < clean_text.length; i += 4)
+  {
+    const a = base64_chars.indexOf(clean_text[i])
+    const b = base64_chars.indexOf(clean_text[i + 1])
+    const c = clean_text[i + 2] === '=' ? -1 : base64_chars.indexOf(clean_text[i + 2])
+    const d = clean_text[i + 3] === '=' ? -1 : base64_chars.indexOf(clean_text[i + 3])
+
+    if (a < 0 || b < 0) continue
+
+    const triple = (a << 18) | (b << 12) | ((c < 0 ? 0 : c) << 6) | (d < 0 ? 0 : d)
+    bytes.push((triple >> 16) & 255)
+    if (c >= 0) bytes.push((triple >> 8) & 255)
+    if (d >= 0) bytes.push(triple & 255)
+  }
+
+  return bytes
 }
 
 async function get_config(): Promise<GithubConfig>

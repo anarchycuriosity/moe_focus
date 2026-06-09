@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { DatabaseService } from '../services/DatabaseService'
 import { moe_colors, spacing, radius, font_size } from '../styles/theme'
 import dayjs from 'dayjs'
+import { ScreenBackground } from '../components/screen_background'
 
 const DAY_LABELS = ['一', '二', '三', '四', '五', '六', '日']
 const MOE_COLORS = [moe_colors.pink, moe_colors.lavender, moe_colors.mint, moe_colors.sky, '#FFE5B4', '#FFD1DC', '#D4C5E8']
@@ -51,12 +52,14 @@ export function StatsScreen(): JSX.Element
   const max_min = Math.max(...daily_data.map((d) => d.minutes), 1)
 
   return (
-    <ScrollView style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
+    <ScreenBackground page_key="statistics">
+      <ScrollView style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
       {/* View toggle */}
       <View style={styles.toggle_row}>
         <TouchableOpacity
           style={[styles.toggle_btn, view === 'weekly' && styles.toggle_active]}
           onPress={() => set_view('weekly')}
+          activeOpacity={0.75}
         >
           <Text style={[styles.toggle_text, view === 'weekly' && styles.toggle_text_active]}>
             周视图
@@ -65,6 +68,7 @@ export function StatsScreen(): JSX.Element
         <TouchableOpacity
           style={[styles.toggle_btn, view === 'items' && styles.toggle_active]}
           onPress={() => set_view('items')}
+          activeOpacity={0.75}
         >
           <Text style={[styles.toggle_text, view === 'items' && styles.toggle_text_active]}>
             专注分布
@@ -118,12 +122,13 @@ export function StatsScreen(): JSX.Element
           )}
         </View>
       )}
-    </ScrollView>
+      </ScrollView>
+    </ScreenBackground>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: moe_colors.cream, paddingHorizontal: spacing.md },
+  container: { flex: 1, paddingHorizontal: spacing.md },
   toggle_row: { flexDirection: 'row', gap: 8, marginBottom: spacing.lg },
   toggle_btn: {
     paddingHorizontal: 20, paddingVertical: 8, borderRadius: radius.sm,

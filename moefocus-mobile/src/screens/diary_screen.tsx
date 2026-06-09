@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Alert, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { Alert, FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import dayjs from 'dayjs'
 import { DatabaseService } from '../services/DatabaseService'
 import { generate_diary, save_reflection } from '../services/diary_service'
 import { font_size, moe_colors, radius, spacing } from '../styles/theme'
 import type { DiaryEntry } from '../types/models'
+import { ScreenBackground } from '../components/screen_background'
 
 export function DiaryScreen(): JSX.Element
 {
@@ -15,13 +16,16 @@ export function DiaryScreen(): JSX.Element
   const [selected_date, set_selected_date] = useState(today)
   const [reflection_text, set_reflection_text] = useState('')
   const [preview_text, set_preview_text] = useState('')
+  const [photo_frame_url, set_photo_frame_url] = useState('')
 
   const load_entries = async () =>
   {
     const rows = await DatabaseService.get_all<DiaryEntry>(
       'SELECT * FROM diary_entries ORDER BY date DESC'
     )
+    const settings = await DatabaseService.get_settings()
     set_entries(rows)
+    set_photo_frame_url(settings['ui.photoFrame.url'] || '')
     const current = rows.find((entry) => entry.date === selected_date)
     set_reflection_text(current?.reflection_text || '')
     set_preview_text(current?.summary_text || '')
@@ -77,11 +81,17 @@ export function DiaryScreen(): JSX.Element
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
+    <ScreenBackground page_key="diary" content_style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
+      {photo_frame_url.trim() ? (
+        <View style={styles.photo_frame}>
+          <Image source={{ uri: photo_frame_url.trim() }} style={styles.photo_image} resizeMode="cover" />
+        </View>
+      ) : null}
+
       <View style={styles.editor_card}>
         <View style={styles.editor_header}>
           <Text style={styles.editor_title}>{selected_date}</Text>
-          <TouchableOpacity style={styles.generate_btn} onPress={generate_selected_diary}>
+          <TouchableOpacity style={styles.generate_btn} onPress={generate_selected_diary} activeOpacity={0.75}>
             <Text style={styles.generate_text}>生成/更新</Text>
           </TouchableOpacity>
         </View>
@@ -115,23 +125,29 @@ export function DiaryScreen(): JSX.Element
         keyExtractor={(item) => item.date}
         renderItem={({ item }) => (
           <View style={[styles.entry_row, item.date === selected_date && styles.entry_active]}>
-            <TouchableOpacity style={styles.entry_main} onPress={() => select_entry(item)}>
+            <TouchableOpacity style={styles.entry_main} onPress={() => select_entry(item)} activeOpacity={0.75}>
               <Text style={styles.entry_date}>{item.date}</Text>
               <Text style={styles.entry_hint}>{item.summary_text ? '已生成 Markdown' : '只有反思草稿'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => delete_entry(item)}>
+            <TouchableOpacity onPress={() => delete_entry(item)} activeOpacity={0.75}>
               <Text style={styles.delete_text}>删除</Text>
             </TouchableOpacity>
           </View>
         )}
         ListEmptyComponent={<Text style={styles.empty_text}>暂无日记</Text>}
       />
-    </View>
+    </ScreenBackground>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: moe_colors.cream, paddingHorizontal: spacing.md },
+  container: { flex: 1, paddingHorizontal: spacing.md },
+  photo_frame: {
+    height: 132, borderRadius: radius.lg, borderWidth: 1,
+    borderColor: moe_colors.border, overflow: 'hidden', marginBottom: spacing.md,
+    backgroundColor: moe_colors.white
+  },
+  photo_image: { width: '100%', height: '100%' },
   editor_card: {
     backgroundColor: moe_colors.white, borderRadius: radius.md,
     borderWidth: 1, borderColor: moe_colors.border, padding: spacing.md

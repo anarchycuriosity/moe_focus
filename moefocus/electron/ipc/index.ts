@@ -717,6 +717,7 @@ function registerEmailHandlers(): void
 // Phase 4 补充: openInTypora; Phase 7 补充: setWallpaper
 async function registerFileHandlers(): Promise<void>
 {
+  const db = () => DatabaseService.instance
   const { existsSync, readdirSync } = await import('fs')
   const { join } = await import('path')
   const { app } = await import('electron')
@@ -770,7 +771,6 @@ async function registerFileHandlers(): Promise<void>
   ipcMain.handle('file:setWallpaper', async (_event, file_path) =>
   {
     // Just store the path — no copying, use local file directly
-    const db = () => DatabaseService.instance
     db().run('UPDATE wallpapers SET is_active = 0')
 
     const file_name = file_path.split(/[\\/]/).pop() || 'wallpaper.png'
