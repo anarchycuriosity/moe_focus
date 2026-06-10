@@ -5,7 +5,7 @@
 import { simpleGit, type SimpleGit } from 'simple-git'
 import { app } from 'electron'
 import { join, basename } from 'path'
-import { writeFileSync, readFileSync, readdirSync, existsSync, mkdirSync } from 'fs'
+import { writeFileSync, readFileSync, readdirSync, existsSync, mkdirSync, copyFileSync } from 'fs'
 import { merge_diary_manual_content, type SyncResult } from './SyncService'
 
 export class GitService
@@ -46,6 +46,7 @@ export class GitService
       'Session Storage/',
       'Shared Dictionary/',
       'SharedStorage/',
+      'sync-backups/',
       'Local State',
       'Preferences'
     ]
@@ -410,8 +411,25 @@ export class GitService
       const sums_snapshot = snapshot_dir(sums_dir, ['.md'])
       const data_snapshot = snapshot_dir(data_dir, ['.json'])
 
+      // 同步前备份：将 sums/ 和 data/ 复制到 sync-backups/<timestamp>/
+      // 该目录不在 git 追踪范围内，git reset --hard 不会影响它
+      const backup_timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const backup_dir = join(this.repo_path, 'sync-backups', backup_timestamp)
+      const backup_sums_dir = join(backup_dir, 'sums')
+      const backup_data_dir = join(backup_dir, 'data')
+      mkdirSync(backup_sums_dir, { recursive: true })
+      mkdirSync(backup_data_dir, { recursive: true })
+      for (const f of readdirSync(sums_dir).filter((f) => f.endsWith('.md')))
+      {
+        copyFileSync(join(sums_dir, f), join(backup_sums_dir, f))
+      }
+      for (const f of readdirSync(data_dir).filter((f) => f.endsWith('.json')))
+      {
+        copyFileSync(join(data_dir, f), join(backup_data_dir, f))
+      }
+
       // 对齐本地 git 历史到远程，防止非 fast-forward push 冲突。
-      // 本地数据已经快照到内存，reset 只影响工作区 git 历史，不丢数据。
+      // 本地数据已经快照到内存 + 磁盘备份，reset 只影响工作区 git 历史，不丢数据。
       if (remote_has_branch)
       {
         try

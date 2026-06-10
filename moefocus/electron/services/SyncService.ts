@@ -86,48 +86,26 @@ export function merge_diary_manual_content(local_md: string, remote_md: string, 
 {
   const local_reflection = extract_diary_reflection(local_md)
   const remote_reflection = extract_diary_reflection(remote_md)
-  const local_cleared = has_reflection_clear_marker(local_reflection)
-  const remote_cleared = has_reflection_clear_marker(remote_reflection)
+  // 只有本地主动清空时才算清空。远程清空不应覆盖本地刚写的反思
+  if (has_reflection_clear_marker(local_reflection)) return replace_diary_reflection(local_md, get_cleared_reflection())
 
-  if (local_cleared || remote_cleared)
-  {
-    const local_meaningful = is_meaningful_reflection(local_reflection)
-
-    if (local_meaningful)
-    {
-      // 本地在清空后又写了新内容，清空标记已失效，走正常合并
-    }
-    else if (local_cleared)
-    {
-      // 本地主动清空且没写新内容，清空意图成立（不管远程有什么旧内容）
-      return replace_diary_reflection(local_md, get_cleared_reflection())
-    }
-    else
-    {
-      // 仅远程有清空标记，且本地无有意义内容
-      const remote_meaningful = is_meaningful_reflection(remote_reflection)
-      if (remote_meaningful)
-      {
-        return replace_diary_reflection(local_md, remote_reflection)
-      }
-      return replace_diary_reflection(local_md, get_cleared_reflection())
-    }
-  }
-
-  const local_meaningful = is_meaningful_reflection(local_reflection)
-  const remote_meaningful = is_meaningful_reflection(remote_reflection)
+  // 将远程清空标记视为「无远程反思」，避免清空标记被拼接到本地反思末尾
+  const remote_meaningful = remote_reflection && !has_reflection_clear_marker(remote_reflection)
+    ? remote_reflection
+    : ''
+  const local_meaningful = is_meaningful_reflection(local_reflection) ? local_reflection : ''
 
   if (!local_meaningful && !remote_meaningful) return local_md
-  if (local_meaningful && !remote_meaningful) return replace_diary_reflection(local_md, local_reflection)
-  if (!local_meaningful && remote_meaningful) return replace_diary_reflection(local_md, remote_reflection)
-  if (local_reflection === remote_reflection) return replace_diary_reflection(local_md, local_reflection)
-  if (local_reflection.includes(remote_reflection)) return replace_diary_reflection(local_md, local_reflection)
-  if (remote_reflection.includes(local_reflection)) return replace_diary_reflection(local_md, remote_reflection)
+  if (local_meaningful && !remote_meaningful) return replace_diary_reflection(local_md, local_meaningful)
+  if (!local_meaningful && remote_meaningful) return replace_diary_reflection(local_md, remote_meaningful)
+  if (local_meaningful === remote_meaningful) return replace_diary_reflection(local_md, local_meaningful)
+  if (local_meaningful.includes(remote_meaningful)) return replace_diary_reflection(local_md, local_meaningful)
+  if (remote_meaningful.includes(local_meaningful)) return replace_diary_reflection(local_md, remote_meaningful)
 
   const merged_reflection = [
-    local_reflection,
+    local_meaningful,
     '',
-    remote_reflection
+    remote_meaningful
   ].join('\n')
 
   return replace_diary_reflection(local_md, merged_reflection)
