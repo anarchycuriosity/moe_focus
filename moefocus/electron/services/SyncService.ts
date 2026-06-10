@@ -86,6 +86,7 @@ export function merge_diary_manual_content(local_md: string, remote_md: string, 
 {
   const local_reflection = extract_diary_reflection(local_md)
   const remote_reflection = extract_diary_reflection(remote_md)
+
   // 只有本地主动清空时才算清空。远程清空不应覆盖本地刚写的反思
   if (has_reflection_clear_marker(local_reflection)) return replace_diary_reflection(local_md, get_cleared_reflection())
 
