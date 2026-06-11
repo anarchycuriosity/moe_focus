@@ -328,7 +328,7 @@ export interface SyncResult
 
 import type { DatabaseService } from './DatabaseService'
 import { join } from 'path'
-import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs'
+import { writeFileSync, readFileSync, existsSync, mkdirSync, readdirSync } from 'fs'
 
 export function export_sessions_from_db(db: DatabaseService, user_data_path: string): void
 {
@@ -542,9 +542,9 @@ export function sync_diary_entries_from_files(db: DatabaseService, user_data_pat
       synced++
     }
   }
-  catch
+  catch (e)
   {
-    // sums/ may be empty or inaccessible
+    console.error('[sync] sync_diary_entries_from_files failed:', e)
   }
 
   return synced
